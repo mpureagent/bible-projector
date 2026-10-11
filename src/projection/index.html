@@ -4,9 +4,46 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>圣言投屏 · 投影窗</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #101418;
+        color: #E8C87A;
+        font-family: "Noto Serif CJK SC", "Source Han Serif SC", serif;
+        transition: background 0.2s ease, color 0.2s ease;
+      }
+      #verse {
+        text-align: center;
+        padding: 8%;
+        line-height: 1.7;
+        max-width: 100%;
+      }
+      #meta {
+        position: fixed;
+        bottom: 5%;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 18px;
+        opacity: 0.55;
+      }
+      #blank-overlay {
+        position: fixed;
+        inset: 0;
+        background: #000;
+        display: none;
+      }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="verse">圣言投屏（M1 骨架）</div>
+    <div id="meta">—</div>
+    <div id="blank-overlay"></div>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

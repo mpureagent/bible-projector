@@ -1,0 +1,32 @@
+import type { Action, AppState } from '../shared/types'
+import { IPC_CHANNELS, isAction } from '../shared/types'
+
+export interface IpcMainLike {
+  handle(channel: string, listener: (event: unknown, payload: unknown) => unknown): void
+}
+
+export interface StoreLike {
+  dispatch(action: Action): Readonly<AppState>
+  getState(): Readonly<AppState>
+}
+
+export interface IpcDeps {
+  ipcMain: IpcMainLike
+  store: StoreLike
+  broadcast: (channel: string, payload: AppState) => void
+}
+
+export function registerIpc(deps: IpcDeps): void {
+  deps.ipcMain.handle(IPC_CHANNELS.action, (_event, payload) => {
+    if (!isAction(payload)) {
+      throw new Error(`非法 action：${JSON.stringify(payload)}`)
+    }
+    const next = deps.store.dispatch(payload)
+    deps.broadcast(IPC_CHANNELS.state, next)
+    return next
+  })
+
+  deps.ipcMain.handle(IPC_CHANNELS.getState, () => deps.store.getState())
+}
+
+export { IPC_CHANNELS }

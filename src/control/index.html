@@ -4,9 +4,85 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>圣言投屏 · 控制窗</title>
+    <style>
+      :root { color-scheme: light; }
+      body {
+        margin: 0;
+        font-family: "Noto Serif CJK SC", "Source Han Serif SC", serif;
+        background: #F7F4EE;
+        color: #26221C;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 18px;
+        border-bottom: 1px solid #D8D2C4;
+      }
+      h1 { font-size: 16px; margin: 0; font-weight: 600; }
+      #banner {
+        font-size: 13px;
+        color: #8A4A1C;
+        background: #F3E2C8;
+        border: 1px solid #D8B88A;
+        border-radius: 6px;
+        padding: 4px 10px;
+        display: none;
+      }
+      #banner.visible { display: inline-block; }
+      main { padding: 18px; display: grid; gap: 14px; }
+      section {
+        border: 1px solid #E2DCCF;
+        border-radius: 6px;
+        padding: 12px 14px;
+        background: #FFFFFF;
+      }
+      h2 { font-size: 13px; margin: 0 0 10px; color: #A8863C; font-weight: 600; }
+      dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 14px; }
+      dt { color: #8C8375; }
+      dd { margin: 0; font-family: ui-monospace, monospace; }
+      .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+      button {
+        font-size: 14px;
+        padding: 10px 16px;
+        min-width: 64px;
+        min-height: 40px;
+        border: 1px solid #C9C0AD;
+        border-radius: 6px;
+        background: #FFFDF8;
+        color: #26221C;
+        cursor: pointer;
+      }
+      button:hover { background: #F3EDDF; }
+    </style>
   </head>
   <body>
-    <div id="app"></div>
+    <header>
+      <h1>圣言投屏 · 控制窗（M1 骨架）</h1>
+      <span id="banner"></span>
+    </header>
+    <main>
+      <section>
+        <h2>状态中枢（来自主进程广播）</h2>
+        <dl>
+          <dt>selection</dt><dd id="st-selection">—</dd>
+          <dt>style</dt><dd id="st-style">—</dd>
+          <dt>blank</dt><dd id="st-blank">—</dd>
+          <dt>lock</dt><dd id="st-lock">—</dd>
+          <dt>display</dt><dd id="st-display">—</dd>
+        </dl>
+      </section>
+      <section>
+        <h2>投影控制（样式改动实时同步到投影窗）</h2>
+        <div class="controls">
+          <button id="btn-blank">黑场</button>
+          <button id="btn-lock">锁屏</button>
+          <button id="btn-font-up">字号 +</button>
+          <button id="btn-font-down">字号 −</button>
+          <button id="btn-theme">主题切换</button>
+        </div>
+      </section>
+    </main>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>
