@@ -191,12 +191,33 @@ bible-projector/
 - 低配机开关：禁用动画、关闭 GPU 加速（设置项）
 - 虚拟滚动不需要（单章 ≤176 节，直接渲染）
 
-## 9. 离线与打包
+## 9. 离线与打包管线
 
 - electron-builder 出 **NSIS 安装包 + 便携 exe** 双产物；全部资源入 asar
 - CSP：`default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:`，运行期物理断网验收
 - 字体、背景图随包；用户自定义背景图从本地文件读入（`userData` 缓存）
 - 验收环境：离线 Windows 虚拟机（断网 + 双显示器模拟 + 2GB 内存低配模式）
+
+### 9.1 Linux 交叉构建（spike 实证，ADR-0002）
+
+开发机为 Linux，产物为 Windows 包。已用 spike（`/data/spikes/e22-cross-build/`，electron-builder 26.15.3 + Electron 22.3.27，配置结构同本节）实测交叉构建，结论：
+
+| 目标 | 结果 | 证据（build log / dist 产物） |
+|---|---|---|
+| win-unpacked | 成功 | `packaging platform=win32 arch=x64 electron=22.3.27` → `downloaded electron zip extracted successfully`；dist/ 落盘 `ShengYanTouPing-Spike.exe` 157,602,304 字节 + 完整 Windows DLL 集（d3dcompiler_47.dll、libEGL.dll 等） |
+| exe 资源改写/签名调用 | 成功 | `updating asar integrity executable resource executablePath=dist/win-unpacked/ShengYanTouPing-Spike.exe`；`signing with signtool.exe path=...`（主 exe 与 elevate.exe 各一次，无报错）——Linux 上无需 Windows 宿主 |
+| zip | 成功 | build4.log TEST A `ZIP_EXIT=0`，耗时 1m13s；dist/ 落盘 93.7MB `*-0.1.0-win-x64.zip`（应急分发产物） |
+| NSIS | **未完成** | 走到应用包压缩完成（下载 `nsis-3.0.4.1.7z`/`nsis-resources-3.4.1.7z`，产出 67MB `*-x64.nsis.7z`），最终链接失败：`⨯ wine process failed ENOENT`（exit 1）——**缺系统包 wine** |
+| portable | **未跑完** | build4.log TEST B 停在 `signing with signtool.exe path=.../elevate.exe` 之后，无退出码、dist/ 无 `*-Portable-*.exe`（宿主机中断），不作"已验证"结论 |
+
+**项目打包流程（固化）**：
+
+1. 命令：`npx electron-builder --win --x64`（nsis + portable 双 target；配置沿用 spike 的 `build.win`/`build.nsis`/`build.portable` 结构，落 `package.json` `build` 字段与 `build/icon.ico`）
+2. 本机依赖：Node、electron-builder 26.x、**wine64**（NSIS/portable 最终链接必需——spike 已实测缺它即失败）。补齐步骤：安装系统 wine（如 `dnf install wine`，64 位 ≥ wine 6），重跑上述命令出 `*-Setup-*.exe` 与 `*-Portable-*.exe`；此为 M4 前置项
+3. 产物一律输出到 `/data` 路径下，**禁止在 /root / 系统盘建构建产物**（磁盘教训）
+4. 产物校验：Setup exe 在断网 Win7 SP1 x64 VM 与 Win10 x64 VM 各安装一次、portable 免装直跑一次、双显示器环境跑全流程（spike 只验证"能构建"，产物尚未在任何 Windows 上运行过）
+
+备选路径：若 wine 路径在脚本化后仍不稳定，切换 CI Windows runner 或 Windows 虚拟机内构建（ADR-0002 备选项），届时重开 ADR。
 
 ## 10. 里程碑（约 3 周）
 
