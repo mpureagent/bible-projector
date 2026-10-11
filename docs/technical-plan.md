@@ -265,9 +265,9 @@ bible-projector/
 | 目标 | 结果 | 证据（build log / dist 产物） |
 |---|---|---|
 | win-unpacked | 成功 | `packaging platform=win32 arch=x64 electron=22.3.27` → `downloaded electron zip extracted successfully`；dist/ 落盘 `ShengYanTouPing-Spike.exe` 157,602,304 字节 + 完整 Windows DLL 集（d3dcompiler_47.dll、libEGL.dll 等） |
-| exe 资源改写/签名调用 | 成功 | `updating asar integrity executable resource executablePath=dist/win-unpacked/ShengYanTouPing-Spike.exe`；`signing with signtool.exe path=...`（主 exe 与 elevate.exe 各一次，无报错）——Linux 上无需 Windows 宿主 |
+| exe 资源改写/签名调用 | 资源改写成功；"签名"为 no-op | `updating asar integrity executable resource executablePath=dist/win-unpacked/ShengYanTouPing-Spike.exe` 成功；`signing with signtool.exe path=...` 虽调用且无报错，但 Linux 无证书时 signtool 为 no-op，**产物未实际签名**——离线自用可接受，M4 打包文档不承诺"已签名" |
 | zip | 成功 | build4.log TEST A `ZIP_EXIT=0`，耗时 1m13s；dist/ 落盘 93.7MB `*-0.1.0-win-x64.zip`（应急分发产物） |
-| NSIS | **未完成** | 走到应用包压缩完成（下载 `nsis-3.0.4.1.7z`/`nsis-resources-3.4.1.7z`，产出 67MB `*-x64.nsis.7z`），最终链接失败：`⨯ wine process failed ENOENT`（exit 1）——**缺系统包 wine** |
+| NSIS | **未完成** | 走到应用包压缩完成（下载 `nsis-3.0.4.1.7z`/`nsis-resources-3.4.1.7z`，产出 23.2MB（24,364,481 字节）`*-x64.nsis.7z`），最终链接失败：`⨯ wine process failed ENOENT`（exit 1）——**缺系统包 wine** |
 | portable | **未跑完** | build4.log TEST B 停在 `signing with signtool.exe path=.../elevate.exe` 之后，无退出码、dist/ 无 `*-Portable-*.exe`（宿主机中断），不作"已验证"结论 |
 
 **项目打包流程（固化）**：
