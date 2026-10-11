@@ -79,6 +79,22 @@ Electron 版本策略：基线用当前 LTS；若确认教会存在 Win7 机器�
 - main 进程为状态唯一持有者：`AppState = { selection, style, blank, lock, display }`
 - 控制窗通过 IPC 发 action；main 更新状态后广播给投影窗（单向数据流，无竞态）
 - 持久化：`userData/config.json`（样式）、`userData/history.json`（历史）
+- 目标显示器以 `display.id` 持久化指派（不存 index——热插拔后 index 会漂移）
+
+### 3.3 投影窗显示器热插拔状态机（ADR-0004）
+
+现场事故场景：讲道中 HDMI 松动/电视切输入源 = 目标 display 消失、投影窗随之销毁或挂到未知屏。`windows.ts` 内维护一个三态状态机：
+
+```
+ASSIGNED ──display-removed──▶ FALLBACK ──display-added──▶ PENDING_RECONNECT ──重指派──▶ ASSIGNED
+   ▲                              │                                    │
+   └──────display-added（是原 id 或用户手动改选）──────────────────────┘
+```
+
+- **监听**：main 进程 `screen.on('display-removed')` / `screen.on('display-added')`（Electron 22 API，热插拔即触发）
+- **FALLBACK**：目标 display 断开时，投影窗立即改挂主屏（控制窗所在显示器）并全屏置顶，画面内容不丢（`blank=false` 时经文继续显示）；控制窗顶栏亮出「⚠ 投影回退主屏」状态条
+- **PENDING_RECONNECT / 恢复策略：自动重连**——`display-added` 事件里若新 display 的 `id` 等于持久化的目标 id（HDMI 重插通常同 id），立即把投影窗迁回该屏并退出 FALLBACK；id 不匹配（换了电视/投影仪）则停在 FALLBACK，由操作员在顶栏下拉里一键改选（一次点击，不做弹窗打断）
+- **验收标准**：拔线—重插全流程投影窗不销毁、不白屏、经文内容不断档；换新显示器时一键改选后 ≤100ms 完成迁移
 
 ## 4. 系统架构与目录结构
 
@@ -234,6 +250,7 @@ bible-projector/
 
 | 风险 | 对策 |
 |---|---|
+| 讲道中 HDMI 松动/电视切输入源（display 热插拔） | §3.3 状态机：display-removed 即回退主屏全屏，display-added 按 id 自动重连或一键改选（ADR-0004） |
 | 教会存在 Win7 机器 | Electron 22 兼容分支，MVP 功能冻结 |
 | CJK 字体体积/授权 | 思源宋体 OFL + 子集化 ≤5MB |
 | 电视偏色/反光 | 高对比主题 + 字号上限 200px + 边距安全区 |
