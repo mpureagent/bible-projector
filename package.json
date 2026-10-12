@@ -17,7 +17,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "icon": "node scripts/gen-icon.mjs",
     "build": "npm run build:data && npm run build:main && npm run build:renderer && npm run typecheck",
-    "pack:win": "electron-builder --win --x64",
+    "pack:win": "electron-builder --win --x64 && node scripts/deliver-artifacts.mjs",
     "test": "vitest run",
     "lint": "eslint .",
     "start": "electron ."
@@ -28,7 +28,7 @@
     "executableName": "ShengYanProjector",
     "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
     "directories": {
-      "output": "dist"
+      "output": "release"
     },
     "asar": true,
     "files": [
