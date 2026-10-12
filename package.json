@@ -1,25 +1,81 @@
 {
   "name": "bible-projector",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "private": true,
   "description": "圣言投屏：离线双窗圣经投屏（Electron 22 单基线，ADR-0001）",
+  "author": {
+    "name": "ShengYan Projector"
+  },
   "main": "dist/main/index.js",
   "engines": {
     "node": ">=16.17.0"
   },
   "scripts": {
+    "build:data": "node scripts/build-data.mjs",
     "build:main": "tsc -p tsconfig.main.json",
     "build:renderer": "vite build",
     "typecheck": "tsc -p tsconfig.json",
-    "build": "npm run build:main && npm run build:renderer && npm run typecheck",
+    "icon": "node scripts/gen-icon.mjs",
+    "build": "npm run build:data && npm run build:main && npm run build:renderer && npm run typecheck",
+    "pack:win": "electron-builder --win --x64",
     "test": "vitest run",
     "lint": "eslint .",
     "start": "electron ."
+  },
+  "build": {
+    "appId": "com.shengyan.projector",
+    "productName": "圣言投屏",
+    "executableName": "ShengYanProjector",
+    "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "dist"
+    },
+    "asar": true,
+    "files": [
+      "dist/**/*",
+      "generated/bible.json",
+      "package.json"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "圣言投屏",
+      "artifactName": "${name}-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${name}-Portable-${version}.${ext}"
+    }
   },
   "devDependencies": {
     "@types/node": "^16.18.0",
     "better-sqlite3": "^13.0.3",
     "electron": "22.3.27",
+    "electron-builder": "26.15.3",
     "eslint": "^9.10.0",
     "eslint-plugin-n": "^17.10.0",
     "happy-dom": "^21.0.0",
