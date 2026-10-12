@@ -12,8 +12,15 @@ export interface Persistence {
   saveHistory(history: HistoryEntry[]): void
 }
 
-const DEFAULT_STYLE: ProjectionStyle = { theme: 'ink', fontSize: 72 }
+const DEFAULT_STYLE: ProjectionStyle = {
+  theme: 'ink',
+  fontSize: 72,
+  mode: 'paragraph',
+  hideVerseNumbers: false,
+  hideTitle: false,
+}
 const HISTORY_CAP = 50
+const FONT_SIZE_MAX = 200 // §11：字号上限
 
 export class AppStateStore {
   private state: AppState
@@ -80,8 +87,12 @@ function reduce(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'select':
       return { ...state, selection: action.selection }
-    case 'style':
-      return { ...state, style: { ...state.style, ...action.patch } }
+    case 'style': {
+      const patch = action.patch.fontSize
+        ? { ...action.patch, fontSize: Math.min(FONT_SIZE_MAX, Math.max(8, action.patch.fontSize)) }
+        : action.patch
+      return { ...state, style: { ...state.style, ...patch } }
+    }
     case 'blank':
       return { ...state, blank: action.value }
     case 'lock':

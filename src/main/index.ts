@@ -85,6 +85,14 @@ async function start(): Promise<void> {
   }
 }
 
+async function logStage(projection: BrowserWindow): Promise<void> {
+  const stageText: string = await projection.webContents.executeJavaScript(
+    `document.getElementById('stage')?.innerText ?? ''`,
+  )
+  console.log(`[smoke] projection-stage=${JSON.stringify(stageText)}`)
+  console.log(`[smoke] projection-has-U+3000=${stageText.includes('　')}`)
+}
+
 async function captureSmokeEvidence(
   control: BrowserWindow,
   projection: BrowserWindow,
@@ -95,25 +103,41 @@ async function captureSmokeEvidence(
   const delayMs = Number(process.env.SMOKE_CAPTURE_DELAY ?? 1200)
   await new Promise((resolve) => setTimeout(resolve, delayMs))
   mkdirSync(outDir, { recursive: true })
-  // E2E（§6.1 三次点击上屏）：SMOKE_SELECT=gen-1-1 时在控制窗 UI 上真实点击 创世记→1 章→1 节，
+  // E2E（§6.1 三次点击上屏）：SMOKE_SELECT=<key> 在控制窗 UI 上真实点击 书→章→节，
   // 经 IPC action → store → 广播 → 投影窗渲染，随后截图留证
-  if (process.env.SMOKE_SELECT === 'gen-1-1') {
+  const SMOKE_SELECTS: Record<string, { book: string; chapter: number; verse: number }> = {
+    'gen-1-1': { book: '创世记', chapter: 1, verse: 1 },
+    'ps-119-1': { book: '诗篇', chapter: 119, verse: 1 },
+  }
+  const selectKey = process.env.SMOKE_SELECT
+  if (selectKey && SMOKE_SELECTS[selectKey]) {
+    const sel = SMOKE_SELECTS[selectKey]!
     await control.webContents.executeJavaScript(
       `(() => {
-        const book = [...document.querySelectorAll('.book-btn')].find((b) => b.title === '创世记')
+        const book = [...document.querySelectorAll('.book-btn')].find((b) => b.title === ${JSON.stringify(sel.book)})
         book && book.click()
-        const chapter = document.querySelector('.chapter-btn')
+        const chapter = [...document.querySelectorAll('.chapter-btn')].find((b) => b.textContent === ${JSON.stringify(String(sel.chapter))})
         chapter && chapter.click()
-        const verse = [...document.querySelectorAll('.verse-btn')].find((b) => b.dataset.verse === '1')
+        const verse = [...document.querySelectorAll('.verse-btn')].find((b) => b.dataset.verse === ${JSON.stringify(String(sel.verse))})
         verse && verse.click()
         return true
       })()`,
     )
-    const stageText: string = await projection.webContents.executeJavaScript(
-      `document.getElementById('stage')?.innerText ?? ''`,
+    await logStage(projection)
+  }
+  // T4 E2E：SMOKE_STYLE=key:value,key:value 经控制窗 bridge 真实 dispatch 样式补丁
+  if (process.env.SMOKE_STYLE) {
+    const patch: Record<string, unknown> = {}
+    for (const pair of process.env.SMOKE_STYLE.split(',')) {
+      const [key, value] = pair.split(':')
+      if (!key || value === undefined) continue
+      patch[key] = value === 'true' ? true : value === 'false' ? false : Number.isNaN(Number(value)) ? value : Number(value)
+    }
+    await control.webContents.executeJavaScript(
+      `window.bridge.dispatch({ type: 'style', patch: ${JSON.stringify(patch)} }).then(() => true)`,
     )
-    console.log(`[smoke] projection-stage=${JSON.stringify(stageText)}`)
-    console.log(`[smoke] projection-has-U+3000=${stageText.includes('　')}`)
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    await logStage(projection)
   }
   // T3-history E2E：切历史 Tab → 渲染列表 → 点击首条回跳上屏
   if (process.env.SMOKE_HISTORY === '1') {

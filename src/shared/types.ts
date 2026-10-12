@@ -3,9 +3,14 @@
 
 export type ThemeName = 'ink' | 'ivory' | 'ocean'
 
+export type LayoutMode = 'paragraph' | 'single'
+
 export interface ProjectionStyle {
   theme: ThemeName
   fontSize: number
+  mode: LayoutMode
+  hideVerseNumbers: boolean
+  hideTitle: boolean
 }
 
 export interface VerseRange {

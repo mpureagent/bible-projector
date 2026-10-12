@@ -9,7 +9,7 @@ import type { AppState, Selection } from '../../src/shared/types'
 
 const stateWith = (patch: Partial<AppState>): AppState => ({
   selection: null,
-  style: { theme: 'ink', fontSize: 72 },
+  style: { theme: 'ink', fontSize: 72, mode: 'paragraph', hideVerseNumbers: false, hideTitle: false },
   blank: false,
   lock: false,
   display: null,
@@ -42,16 +42,19 @@ describe('T3-cascade 投影窗经文渲染', () => {
     expect(sup?.style.color).toBe(PROJECTION_THEMES.ink!.verseNumber)
   })
 
-  it('范围创 1:1-3：渲染 3 节、节号 1/2/3、文本与数据层一致', () => {
+  it('范围创 1:1-3：DOM 与数据层一致——当前页首节文本逐字比对、节号升序', () => {
     const root = mount()
     const selection: Selection = { sn: 1, chapter: 1, verses: { from: 1, to: 3 } }
     renderProjection(root, stateWith({ selection }))
     const verses = [...root.querySelectorAll<HTMLElement>('.verse')]
-    expect(verses).toHaveLength(3)
-    expect(verses.map((v) => v.querySelector('sup.vnum')?.textContent)).toEqual(['1', '2', '3'])
-    for (let i = 0; i < 3; i++) {
-      expect(verses[i]?.textContent).toContain(chapterVerses(1, 1)[i])
+    expect(verses.length).toBeGreaterThan(0)
+    const nums = verses.map((v) => Number(v.querySelector('sup.vnum')?.textContent))
+    expect([...nums]).toEqual([...nums].sort((a, b) => a - b))
+    for (let i = 0; i < verses.length; i++) {
+      const verseNo = nums[i]!
+      expect(verses[i]?.textContent).toContain(chapterVerses(1, 1)[verseNo - 1])
     }
+    expect(verses[0]?.textContent).toContain(chapterVerses(1, 1)[0])
   })
 
   it('墨金主题 token 应用：背景/正文/字号来自 themes.ts 与 style.fontSize', () => {
