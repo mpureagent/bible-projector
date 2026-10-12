@@ -86,6 +86,28 @@
       }
       .search-item:hover { background: #F3EDDF; }
       .search-item-meta { font-size: 11px; color: #8C8375; font-family: ui-monospace, monospace; }
+      .history-title { font-size: 13px; margin: 0 0 10px; color: #A8863C; font-weight: 600; }
+      .history-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+      .history-item {
+        display: flex;
+        width: 100%;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        padding: 8px 10px;
+        min-height: 36px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: #FFFDF8;
+        cursor: pointer;
+        font-family: inherit;
+        text-align: left;
+      }
+      .history-item:hover { background: #F3EDDF; }
+      .history-item-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .history-item-time { font-size: 11px; color: #8C8375; font-family: ui-monospace, monospace; flex-shrink: 0; }
+      .history-empty { font-size: 13px; color: #8C8375; padding: 8px 2px; }
       .tab-bar { display: flex; gap: 8px; margin: 12px 0 10px; }
       .tab-btn {
         font-size: 14px;
@@ -175,6 +197,7 @@
     <div id="layout">
       <div id="books-panel">
         <div id="search-panel"></div>
+        <div id="history-panel"></div>
       </div>
       <div id="chapters-panel" hidden></div>
       <div id="verses-panel" hidden></div>

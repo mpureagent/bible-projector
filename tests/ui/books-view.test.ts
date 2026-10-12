@@ -46,17 +46,32 @@ describe('T3-grid 书卷网格（真实 66 卷数据）', () => {
     expect(names()).not.toContain('创世记')
   })
 
-  it('Tab 按钮与激活态：旧约/新约两个 tab，当前 tab 带 active 类', () => {
+  it('Tab 按钮与激活态：旧约/新约/历史三个 tab，当前 tab 带 active 类', () => {
     const { root, view } = mount()
     view.setTestament(1)
     const tabs = [...root.querySelectorAll<HTMLElement>('.tab-btn')]
-    expect(tabs.map((t) => t.textContent?.trim())).toEqual(['旧约', '新约'])
+    expect(tabs.map((t) => t.textContent?.trim())).toEqual(['旧约', '新约', '历史'])
     const oldTab = tabs[0]!
     const newTab = tabs[1]!
     expect(newTab.classList.contains('active')).toBe(true)
     expect(oldTab.classList.contains('active')).toBe(false)
     oldTab.click()
     expect(oldTab.classList.contains('active')).toBe(true)
+    expect(root.querySelectorAll('.book-btn')).toHaveLength(39)
+  })
+
+  it('第三 Tab「历史」：点击进入历史模式（onModeChange(history)、网格隐藏），点回旧约恢复书卷模式', () => {
+    const onModeChange = vi.fn()
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    new BooksView(root, { onBook: () => {}, onModeChange })
+    const tabs = [...root.querySelectorAll<HTMLElement>('.tab-btn')]
+    tabs[2]!.click()
+    expect(onModeChange).toHaveBeenLastCalledWith('history')
+    expect(root.querySelector<HTMLElement>('.book-grid')!.hidden).toBe(true)
+    tabs[0]!.click()
+    expect(onModeChange).toHaveBeenLastCalledWith('books')
+    expect(root.querySelector<HTMLElement>('.book-grid')!.hidden).toBe(false)
     expect(root.querySelectorAll('.book-btn')).toHaveLength(39)
   })
 

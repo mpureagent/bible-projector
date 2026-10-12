@@ -5,6 +5,7 @@ import type { Action, AppState } from '../shared/types'
 const CH = {
   action: 'app:action',
   getState: 'app:get-state',
+  getHistory: 'app:get-history',
   state: 'app:state',
   banner: 'app:banner',
 } as const
@@ -12,6 +13,7 @@ const CH = {
 contextBridge.exposeInMainWorld('bridge', {
   dispatch: (action: Action) => ipcRenderer.invoke(CH.action, action),
   getState: () => ipcRenderer.invoke(CH.getState),
+  getHistory: () => ipcRenderer.invoke(CH.getHistory),
   onState: (callback: (state: AppState) => void) => {
     const listener = (_event: unknown, state: AppState) => callback(state)
     ipcRenderer.on(CH.state, listener)

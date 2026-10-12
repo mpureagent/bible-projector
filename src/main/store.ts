@@ -65,11 +65,14 @@ export class AppStateStore {
       last.selection.chapter === selection.chapter &&
       last.selection.verses.from === selection.verses.from &&
       last.selection.verses.to === selection.verses.to
-    if (!sameAsLast) {
+    if (sameAsLast) {
+      // 同书同范围连续选择合并为最新：刷新时间戳，不新增条目
+      this.history[0] = { selection, at: Date.now() }
+    } else {
       this.history.unshift({ selection, at: Date.now() })
       if (this.history.length > HISTORY_CAP) this.history.length = HISTORY_CAP
-      this.persistence.saveHistory(this.history)
     }
+    this.persistence.saveHistory(this.history)
   }
 }
 

@@ -115,6 +115,20 @@ async function captureSmokeEvidence(
     console.log(`[smoke] projection-stage=${JSON.stringify(stageText)}`)
     console.log(`[smoke] projection-has-U+3000=${stageText.includes('　')}`)
   }
+  // T3-history E2E：切历史 Tab → 渲染列表 → 点击首条回跳上屏
+  if (process.env.SMOKE_HISTORY === '1') {
+    const historyText: string = await control.webContents.executeJavaScript(
+      `(() => {
+        const tabs = [...document.querySelectorAll('.tab-btn')]
+        tabs.find((t) => t.textContent === '历史') && tabs.find((t) => t.textContent === '历史').click()
+        const list = document.querySelector('.history-list')
+        const first = list && list.querySelector('.history-item')
+        first && first.click()
+        return (list && list.innerText) || ''
+      })()`,
+    )
+    console.log(`[smoke] history-list=${JSON.stringify(historyText)}`)
+  }
   console.log(
     `[smoke] control=${control.webContents.getURL()} projection=${projection.webContents.getURL()}`,
   )

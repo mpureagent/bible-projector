@@ -1,4 +1,4 @@
-import type { Action, AppState } from '../shared/types'
+import type { Action, AppState, HistoryEntry } from '../shared/types'
 import { IPC_CHANNELS, isAction } from '../shared/types'
 
 export interface IpcMainLike {
@@ -8,6 +8,7 @@ export interface IpcMainLike {
 export interface StoreLike {
   dispatch(action: Action): Readonly<AppState>
   getState(): Readonly<AppState>
+  getHistory(): readonly HistoryEntry[]
 }
 
 export interface IpcDeps {
@@ -27,6 +28,7 @@ export function registerIpc(deps: IpcDeps): void {
   })
 
   deps.ipcMain.handle(IPC_CHANNELS.getState, () => deps.store.getState())
+  deps.ipcMain.handle(IPC_CHANNELS.getHistory, () => deps.store.getHistory())
 }
 
 export { IPC_CHANNELS }

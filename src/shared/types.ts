@@ -42,6 +42,7 @@ export interface HistoryEntry {
 export const IPC_CHANNELS = {
   action: 'app:action',
   getState: 'app:get-state',
+  getHistory: 'app:get-history',
   state: 'app:state',
   banner: 'app:banner',
 } as const
@@ -57,6 +58,7 @@ export function isAction(value: unknown): value is Action {
 export interface BridgeApi {
   dispatch(action: Action): Promise<AppState>
   getState(): Promise<AppState>
+  getHistory(): Promise<HistoryEntry[]>
   onState(callback: (state: AppState) => void): () => void
   onBanner(callback: (banner: { text: string | null }) => void): () => void
 }
