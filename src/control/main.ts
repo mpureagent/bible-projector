@@ -1,8 +1,17 @@
 import type { AppState, ThemeName } from '../shared/types'
+import { BooksView } from './books-view'
+import { ChaptersView } from './chapters-view'
 
 const THEMES: ThemeName[] = ['ink', 'ivory', 'ocean']
 
 let current: AppState | null = null
+
+const chaptersView = new ChaptersView(document.getElementById('chapters-panel')!, {
+  onChapter: () => {},
+})
+new BooksView(document.getElementById('books-panel')!, {
+  onBook: (sn) => chaptersView.setBook(sn),
+})
 
 window.bridge.onState(render)
 void window.bridge.getState().then(render)

@@ -30,19 +30,61 @@
         display: none;
       }
       #banner.visible { display: inline-block; }
-      main { padding: 18px; display: grid; gap: 14px; }
-      section {
+      #layout { display: grid; grid-template-columns: 320px 1fr; gap: 14px; padding: 14px 18px; }
+      #books-panel, #chapters-panel {
         border: 1px solid #E2DCCF;
         border-radius: 6px;
         padding: 12px 14px;
         background: #FFFFFF;
       }
-      h2 { font-size: 13px; margin: 0 0 10px; color: #A8863C; font-weight: 600; }
-      dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 14px; }
-      dt { color: #8C8375; }
-      dd { margin: 0; font-family: ui-monospace, monospace; }
+      #chapters-panel { min-height: 400px; }
+      .tab-bar { display: flex; gap: 8px; margin-bottom: 10px; }
+      .tab-btn {
+        font-size: 14px;
+        padding: 6px 14px;
+        min-height: 36px;
+        border: 1px solid #C9C0AD;
+        border-radius: 6px;
+        background: #FFFDF8;
+        cursor: pointer;
+      }
+      .tab-btn.active { background: #F3EDDF; border-color: #A8863C; color: #A8863C; font-weight: 600; }
+      .book-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+      .book-btn {
+        font-size: 15px;
+        padding: 10px 4px;
+        min-height: 40px;
+        border: 1px solid #C9C0AD;
+        border-radius: 6px;
+        background: #FFFDF8;
+        color: #26221C;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .book-btn:hover { filter: brightness(0.96); }
+      .chapter-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px; }
+      .chapter-btn {
+        font-size: 14px;
+        padding: 8px 0;
+        min-height: 36px;
+        border: 1px solid #C9C0AD;
+        border-radius: 6px;
+        background: #FFFDF8;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .chapter-btn:hover { background: #F3EDDF; }
+      .chapters-title { font-size: 13px; margin: 0 0 10px; color: #A8863C; font-weight: 600; }
+      section.controls-box {
+        margin: 14px 18px;
+        border: 1px solid #E2DCCF;
+        border-radius: 6px;
+        padding: 12px 14px;
+        background: #FFFFFF;
+      }
       .controls { display: flex; flex-wrap: wrap; gap: 8px; }
       button {
+        font-family: inherit;
         font-size: 14px;
         padding: 10px 16px;
         min-width: 64px;
@@ -54,35 +96,36 @@
         cursor: pointer;
       }
       button:hover { background: #F3EDDF; }
+      dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0 0 10px; font-size: 14px; }
+      dt { color: #8C8375; }
+      dd { margin: 0; font-family: ui-monospace, monospace; }
     </style>
   </head>
   <body>
     <header>
-      <h1>圣言投屏 · 控制窗（M1 骨架）</h1>
+      <h1>圣言投屏 · 控制窗</h1>
       <span id="banner"></span>
     </header>
-    <main>
-      <section>
-        <h2>状态中枢（来自主进程广播）</h2>
-        <dl>
-          <dt>selection</dt><dd id="st-selection">—</dd>
-          <dt>style</dt><dd id="st-style">—</dd>
-          <dt>blank</dt><dd id="st-blank">—</dd>
-          <dt>lock</dt><dd id="st-lock">—</dd>
-          <dt>display</dt><dd id="st-display">—</dd>
-        </dl>
-      </section>
-      <section>
-        <h2>投影控制（样式改动实时同步到投影窗）</h2>
-        <div class="controls">
-          <button id="btn-blank">黑场</button>
-          <button id="btn-lock">锁屏</button>
-          <button id="btn-font-up">字号 +</button>
-          <button id="btn-font-down">字号 −</button>
-          <button id="btn-theme">主题切换</button>
-        </div>
-      </section>
-    </main>
+    <div id="layout">
+      <div id="books-panel"></div>
+      <div id="chapters-panel" hidden></div>
+    </div>
+    <section class="controls-box">
+      <dl>
+        <dt>selection</dt><dd id="st-selection">—</dd>
+        <dt>style</dt><dd id="st-style">—</dd>
+        <dt>blank</dt><dd id="st-blank">—</dd>
+        <dt>lock</dt><dd id="st-lock">—</dd>
+        <dt>display</dt><dd id="st-display">—</dd>
+      </dl>
+      <div class="controls">
+        <button id="btn-blank">黑场</button>
+        <button id="btn-lock">锁屏</button>
+        <button id="btn-font-up">字号 +</button>
+        <button id="btn-font-down">字号 −</button>
+        <button id="btn-theme">主题切换</button>
+      </div>
+    </section>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>
