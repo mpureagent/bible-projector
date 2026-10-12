@@ -16,7 +16,7 @@
     "build:renderer": "vite build",
     "typecheck": "tsc -p tsconfig.json",
     "icon": "node scripts/gen-icon.mjs",
-    "build": "npm run build:data && npm run build:main && npm run build:renderer && npm run typecheck",
+    "build": "npm run build:data && npm run build:main && npm run build:renderer && node scripts/inject-csp.mjs && npm run typecheck",
     "pack:win": "electron-builder --win --x64 && node scripts/deliver-artifacts.mjs",
     "test": "vitest run",
     "lint": "eslint .",
@@ -32,7 +32,9 @@
     },
     "asar": true,
     "files": [
-      "dist/**/*",
+      "dist/main/**/*",
+      "dist/renderer/**/*",
+      "dist/shared/**/*",
       "generated/bible.json",
       "package.json"
     ],

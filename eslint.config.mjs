@@ -18,7 +18,37 @@ export default tseslint.config(
   {
     files: ['scripts/**/*.mjs', 'tests/**/*.mjs'],
     languageOptions: {
-      globals: { console: 'readonly', process: 'readonly', URL: 'readonly', document: 'readonly', Buffer: 'readonly' },
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        URL: 'readonly',
+        document: 'readonly',
+        Buffer: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+      },
+    },
+  },
+  {
+    files: ['scripts/**/*.cjs'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        require: 'readonly',
+        module: 'readonly',
+        Buffer: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+      },
+    },
+    rules: {
+      // NODE_OPTIONS --require 注入的 CommonJS hook 无法改用 ESM
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
   {
