@@ -5,6 +5,8 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   root: 'src',
   base: './',
+  // assets/（字体/纹理）随包资源：构建期复制进 dist/renderer，渲染窗以相对路径引用
+  publicDir: resolve(__dirname, 'assets'),
   build: {
     target: 'chrome108',
     outDir: resolve(__dirname, 'dist/renderer'),

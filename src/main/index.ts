@@ -129,6 +129,11 @@ async function captureSmokeEvidence(
     )
     console.log(`[smoke] history-list=${JSON.stringify(historyText)}`)
   }
+  // T4-font E2E：投影窗 @font-face 注入后子集宋体真实可用（document.fonts.check 实测）
+  const fontLoaded: boolean = await projection.webContents.executeJavaScript(
+    `document.fonts.ready.then(() => document.fonts.check('16px "Bible Serif SC"'))`,
+  )
+  console.log(`[smoke] subset-font-loaded=${fontLoaded}`)
   console.log(
     `[smoke] control=${control.webContents.getURL()} projection=${projection.webContents.getURL()}`,
   )

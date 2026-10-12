@@ -1,9 +1,12 @@
 import type { AppState, ThemeName } from '../shared/types'
+import { applyFontStack } from '../shared/fonts'
 import { BooksView } from './books-view'
 import { ChaptersView } from './chapters-view'
 import { HistoryView } from './history-view'
 import { SearchView } from './search-view'
 import { VersesView } from './verses-view'
+
+applyFontStack(document)
 
 const THEMES: ThemeName[] = ['ink', 'ivory', 'ocean']
 

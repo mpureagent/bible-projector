@@ -1,6 +1,8 @@
 import type { AppState } from '../shared/types'
+import { applyFontStack } from '../shared/fonts'
 import { renderProjection } from './render'
 
+applyFontStack(document)
 window.bridge.onState(render)
 void window.bridge.getState().then(render)
 
