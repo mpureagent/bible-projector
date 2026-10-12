@@ -43,6 +43,20 @@ async function start(): Promise<void> {
   const machine = createHotplugMachine(target.id, 'ASSIGNED')
   const projection = createProjectionWindow(target, SMOKE_CAPTURE)
 
+  const listDisplays = () => {
+    const primary = screen.getPrimaryDisplay()
+    return screen.getAllDisplays().map((d) => ({
+      id: d.id,
+      label: `${d.size.width}×${d.size.height} @(${d.bounds.x},${d.bounds.y})`,
+      primary: d.id === primary.id,
+    }))
+  }
+
+  const setProjectionFullscreen = (value?: boolean): void => {
+    if (projection.isDestroyed()) return
+    projection.setFullScreen(value ?? !projection.isFullScreen())
+  }
+
   const broadcast = (channel: string, payload: unknown): void => {
     for (const win of [control, projection]) {
       if (win && !win.isDestroyed()) win.webContents.send(channel, payload)
@@ -53,6 +67,8 @@ async function start(): Promise<void> {
     ipcMain,
     store,
     broadcast: (channel, payload) => broadcast(channel, payload),
+    getDisplays: listDisplays,
+    setProjectionFullscreen,
   })
 
   wireHotplug({
@@ -81,7 +97,7 @@ async function start(): Promise<void> {
   })
 
   if (SMOKE_CAPTURE) {
-    await captureSmokeEvidence(control, projection)
+    await captureSmokeEvidence(control, projection, setProjectionFullscreen)
   }
 }
 
@@ -100,6 +116,7 @@ async function logStage(projection: BrowserWindow): Promise<void> {
 async function captureSmokeEvidence(
   control: BrowserWindow,
   projection: BrowserWindow,
+  setProjectionFullscreen: (value?: boolean) => void,
 ): Promise<void> {
   const { mkdirSync, writeFileSync } = await import('node:fs')
   const { join } = await import('node:path')
@@ -162,6 +179,32 @@ async function captureSmokeEvidence(
     `document.fonts.ready.then(() => document.fonts.check('16px "Bible Serif SC"'))`,
   )
   console.log(`[smoke] subset-font-loaded=${fontLoaded}`)
+  // T4-keys E2E：控制窗真实派发 keydown（B/B/+/↓/L/B/L——锁屏下 B 应被拦截），
+  // 终态断据：blank=false（第 3 次 B 被锁屏拦截）、fontSize +12、selection 翻到下一节
+  if (process.env.SMOKE_KEYS === '1') {
+    const before: AppState = await control.webContents.executeJavaScript('window.bridge.getState()')
+    const after: AppState = await control.webContents.executeJavaScript(
+      `(async () => {
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+        // 逐键等待广播回流，模拟真实节奏（同步连发会读到陈旧本地状态）
+        const press = async (key) => {
+          document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
+          await wait(150)
+        }
+        await press('b'); await press('b'); await press('+'); await press('ArrowDown')
+        await press('l'); await press('b'); await press('l')
+        await wait(300)
+        return window.bridge.getState()
+      })()`,
+    )
+    console.log(`[smoke] keys-before=${JSON.stringify({ blank: before.blank, lock: before.lock, fontSize: before.style.fontSize, sel: before.selection })}`)
+    console.log(`[smoke] keys-after=${JSON.stringify({ blank: after.blank, lock: after.lock, fontSize: after.style.fontSize, sel: after.selection })}`)
+    // 投影全屏切换（F/Esc 窗口级接线）：真实 setFullScreen + 回落
+    setProjectionFullscreen(true)
+    const fsOn: boolean = projection.isFullScreen()
+    setProjectionFullscreen(false)
+    console.log(`[smoke] projection-fullscreen-toggle=${fsOn}->${projection.isFullScreen()}`)
+  }
   console.log(
     `[smoke] control=${control.webContents.getURL()} projection=${projection.webContents.getURL()}`,
   )

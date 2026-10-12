@@ -33,7 +33,7 @@ describe('IPC app:get-history 通道', () => {
   it('返回 store 历史（含 select 推入的条目），无选择时为空数组', () => {
     const store = new AppStateStore(noopPersistence)
     const ipcMain = fakeIpcMain()
-    registerIpc({ ipcMain, store, broadcast: () => {} })
+    registerIpc({ ipcMain, store, broadcast: () => {}, getDisplays: () => [], setProjectionFullscreen: () => {} })
     const handler = ipcMain.handlers.find((h) => h.channel === IPC_CHANNELS.getHistory)
     if (!handler) throw new Error('get-history handler 未注册')
 

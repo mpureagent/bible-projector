@@ -62,9 +62,17 @@ export const IPC_CHANNELS = {
   action: 'app:action',
   getState: 'app:get-state',
   getHistory: 'app:get-history',
+  getDisplays: 'app:get-displays',
+  projectionFullscreen: 'app:projection-fullscreen',
   state: 'app:state',
   banner: 'app:banner',
 } as const
+
+export interface DisplayInfo {
+  id: number
+  label: string
+  primary: boolean
+}
 
 const ACTION_TYPES = new Set(['select', 'style', 'blank', 'lock', 'display'])
 
@@ -78,6 +86,8 @@ export interface BridgeApi {
   dispatch(action: Action): Promise<AppState>
   getState(): Promise<AppState>
   getHistory(): Promise<HistoryEntry[]>
+  getDisplays(): Promise<DisplayInfo[]>
+  setProjectionFullscreen(value?: boolean): Promise<void>
   onState(callback: (state: AppState) => void): () => void
   onBanner(callback: (banner: { text: string | null }) => void): () => void
 }

@@ -6,6 +6,8 @@ const CH = {
   action: 'app:action',
   getState: 'app:get-state',
   getHistory: 'app:get-history',
+  getDisplays: 'app:get-displays',
+  projectionFullscreen: 'app:projection-fullscreen',
   state: 'app:state',
   banner: 'app:banner',
 } as const
@@ -14,6 +16,8 @@ contextBridge.exposeInMainWorld('bridge', {
   dispatch: (action: Action) => ipcRenderer.invoke(CH.action, action),
   getState: () => ipcRenderer.invoke(CH.getState),
   getHistory: () => ipcRenderer.invoke(CH.getHistory),
+  getDisplays: () => ipcRenderer.invoke(CH.getDisplays),
+  setProjectionFullscreen: (value?: boolean) => ipcRenderer.invoke(CH.projectionFullscreen, { value }),
   onState: (callback: (state: AppState) => void) => {
     const listener = (_event: unknown, state: AppState) => callback(state)
     ipcRenderer.on(CH.state, listener)

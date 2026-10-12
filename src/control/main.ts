@@ -1,5 +1,7 @@
 import type { AppState, ThemeName } from '../shared/types'
 import { applyFontStack } from '../shared/font-dom'
+import { createKeyboardController } from './keyboard'
+import { DisplaySelect } from './display-select'
 import { BooksView } from './books-view'
 import { ChaptersView } from './chapters-view'
 import { HistoryView } from './history-view'
@@ -59,6 +61,19 @@ window.bridge.onBanner(({ text }) => {
   el.classList.toggle('visible', text !== null && text !== '')
 })
 
+// T4-keys：§6.3 快捷键全集（锁屏下除 L 外禁用）+ 目标显示器下拉（display.id 指派）
+const displaySelect = new DisplaySelect(document.getElementById('display-panel')!, {
+  onAssign: (id) => {
+    void window.bridge.dispatch({ type: 'display', id })
+  },
+})
+const refreshDisplays = (): void => {
+  void window.bridge.getDisplays().then((displays) => {
+    displaySelect.renderState(displays, current?.display ?? null)
+  })
+}
+refreshDisplays()
+
 function render(state: AppState): void {
   current = state
   const set = (id: string, text: string) => {
@@ -71,6 +86,7 @@ function render(state: AppState): void {
   set('st-lock', String(state.lock))
   set('st-display', String(state.display))
   styleView.renderState(state.style)
+  refreshDisplays()
   refreshHistory()
 }
 
@@ -95,5 +111,16 @@ const styleView = new StyleView(document.getElementById('style-drawer')!, {
   },
 })
 on('btn-style', () => styleView.toggle())
+
+createKeyboardController({
+  getState: () => current,
+  dispatch: (action) => {
+    void window.bridge.dispatch(action)
+  },
+  toggleDrawer: () => styleView.toggle(),
+  setFullscreen: (value) => {
+    void window.bridge.setProjectionFullscreen(value)
+  },
+})
 
 export {}

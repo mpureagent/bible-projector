@@ -31,7 +31,7 @@ function setup() {
   const store = new AppStateStore(noopPersistence)
   const broadcast = vi.fn()
   const ipcMain = fakeIpcMain()
-  registerIpc({ ipcMain, store, broadcast })
+  registerIpc({ ipcMain, store, broadcast, getDisplays: () => [], setProjectionFullscreen: () => {} })
   const handler = ipcMain.handlers.find((h) => h.channel === IPC_CHANNELS.action)
   if (!handler) throw new Error('action handler 未注册')
   const invoke = (action: unknown) => handler.invoke(action)
