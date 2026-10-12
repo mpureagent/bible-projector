@@ -1,16 +1,30 @@
 // 共享类型与 IPC 通道契约（§3.2 / §5.3 关联）。
 // AppState = { selection, style, blank, lock, display }——main 为状态唯一持有者。
 
+import type { Align, FontChoice } from './style'
+
 export type ThemeName = 'ink' | 'ivory' | 'ocean'
 
 export type LayoutMode = 'paragraph' | 'single'
 
+// §2.3 样式全项：色值/背景图 null = 跟随当前主题 token；backgroundImage 为
+// 'builtin:<纹理id>'（随包）或本地绝对路径（网络 URL 在 store 层被清洗）
 export interface ProjectionStyle {
   theme: ThemeName
   fontSize: number
   mode: LayoutMode
   hideVerseNumbers: boolean
   hideTitle: boolean
+  fontFamily: FontChoice
+  color: string | null
+  verseNumberColor: string | null
+  currentColor: string | null
+  background: string | null
+  backgroundImage: string | null
+  lineHeight: number
+  letterSpacing: number
+  align: Align
+  margin: number
 }
 
 export interface VerseRange {

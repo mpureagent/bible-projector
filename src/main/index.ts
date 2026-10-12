@@ -91,6 +91,10 @@ async function logStage(projection: BrowserWindow): Promise<void> {
   )
   console.log(`[smoke] projection-stage=${JSON.stringify(stageText)}`)
   console.log(`[smoke] projection-has-U+3000=${stageText.includes('　')}`)
+  const bg: string = await projection.webContents.executeJavaScript(
+    `getComputedStyle(document.getElementById('stage')).backgroundColor`,
+  )
+  console.log(`[smoke] projection-background=${bg}`)
 }
 
 async function captureSmokeEvidence(

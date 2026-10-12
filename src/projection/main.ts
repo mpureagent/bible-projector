@@ -1,5 +1,5 @@
 import type { AppState } from '../shared/types'
-import { applyFontStack } from '../shared/fonts'
+import { applyFontStack } from '../shared/font-dom'
 import { renderProjection } from './render'
 
 applyFontStack(document)

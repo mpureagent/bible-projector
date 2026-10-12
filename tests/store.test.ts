@@ -24,7 +24,23 @@ describe('AppState 状态中枢（§3.2 单向数据流）', () => {
     const store = new AppStateStore(fakePersistence().persistence)
     expect(store.getState()).toEqual({
       selection: null,
-      style: { theme: 'ink', fontSize: 72, mode: 'paragraph', hideVerseNumbers: false, hideTitle: false },
+      style: {
+        theme: 'ink',
+        fontSize: 72,
+        mode: 'paragraph',
+        hideVerseNumbers: false,
+        hideTitle: false,
+        fontFamily: 'embedded-serif',
+        color: null,
+        verseNumberColor: null,
+        currentColor: null,
+        background: null,
+        backgroundImage: null,
+        lineHeight: 1.7,
+        letterSpacing: 0,
+        align: 'center',
+        margin: 8,
+      },
       blank: false,
       lock: false,
       display: null,
@@ -63,6 +79,16 @@ describe('AppState 状态中枢（§3.2 单向数据流）', () => {
       mode: 'paragraph',
       hideVerseNumbers: false,
       hideTitle: false,
+      fontFamily: 'embedded-serif',
+      color: null,
+      verseNumberColor: null,
+      currentColor: null,
+      background: null,
+      backgroundImage: null,
+      lineHeight: 1.7,
+      letterSpacing: 0,
+      align: 'center',
+      margin: 8,
     })
   })
 
@@ -84,6 +110,16 @@ describe('AppState 状态中枢（§3.2 单向数据流）', () => {
       mode: 'single',
       hideVerseNumbers: false,
       hideTitle: false,
+      fontFamily: 'embedded-serif',
+      color: null,
+      verseNumberColor: null,
+      currentColor: null,
+      background: null,
+      backgroundImage: null,
+      lineHeight: 1.7,
+      letterSpacing: 0,
+      align: 'center',
+      margin: 8,
     })
     expect(store.getState().display).toBe(7)
   })

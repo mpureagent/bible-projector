@@ -1,10 +1,11 @@
 import type { AppState, ThemeName } from '../shared/types'
-import { applyFontStack } from '../shared/fonts'
+import { applyFontStack } from '../shared/font-dom'
 import { BooksView } from './books-view'
 import { ChaptersView } from './chapters-view'
 import { HistoryView } from './history-view'
 import { SearchView } from './search-view'
 import { VersesView } from './verses-view'
+import { StyleView } from './style-view'
 
 applyFontStack(document)
 
@@ -69,6 +70,7 @@ function render(state: AppState): void {
   set('st-blank', String(state.blank))
   set('st-lock', String(state.lock))
   set('st-display', String(state.display))
+  styleView.renderState(state.style)
   refreshHistory()
 }
 
@@ -85,5 +87,13 @@ on('btn-theme', () => {
   const next = THEMES[(THEMES.indexOf(current?.style.theme ?? 'ink') + 1) % THEMES.length]
   void window.bridge.dispatch({ type: 'style', patch: { theme: next } })
 })
+
+// T4-style：样式抽屉（齿轮按钮 / S 键唤出），全部变更即时 dispatch → 广播投影窗
+const styleView = new StyleView(document.getElementById('style-drawer')!, {
+  onPatch: (patch) => {
+    void window.bridge.dispatch({ type: 'style', patch })
+  },
+})
+on('btn-style', () => styleView.toggle())
 
 export {}

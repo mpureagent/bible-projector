@@ -12,14 +12,25 @@ import type { Persistence } from '../../src/main/store'
 
 const ps119 = chapterVerses(19, 119)
 
-const style = (patch: Partial<ProjectionStyle>): ProjectionStyle => ({
+const baseStyle: ProjectionStyle = {
   theme: 'ink',
   fontSize: 72,
   mode: 'paragraph',
   hideVerseNumbers: false,
   hideTitle: false,
-  ...patch,
-})
+  fontFamily: 'embedded-serif',
+  color: null,
+  verseNumberColor: null,
+  currentColor: null,
+  background: null,
+  backgroundImage: null,
+  lineHeight: 1.7,
+  letterSpacing: 0,
+  align: 'center',
+  margin: 8,
+}
+
+const style = (patch: Partial<ProjectionStyle>): ProjectionStyle => ({ ...baseStyle, ...patch })
 
 const stateWith = (patch: Partial<AppState>): AppState => ({
   selection: null,

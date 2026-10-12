@@ -187,6 +187,50 @@
       dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0 0 10px; font-size: 14px; }
       dt { color: #8C8375; }
       dd { margin: 0; font-family: ui-monospace, monospace; }
+      /* T4-style 样式抽屉（§6.2 右抽屉） */
+      .style-drawer {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 300px;
+        overflow-y: auto;
+        padding: 14px 16px;
+        background: #FFFDF8;
+        border-left: 1px solid #C9C0AD;
+        box-shadow: -4px 0 12px rgba(38, 34, 28, 0.1);
+        z-index: 20;
+      }
+      .style-drawer h3 { font-size: 13px; color: #A8863C; margin: 14px 0 8px; }
+      .style-drawer h3:first-child { margin-top: 0; }
+      .style-section { border-bottom: 1px dashed #E2DCCF; padding-bottom: 10px; }
+      .style-field { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; }
+      .style-label { font-size: 13px; color: #26221C; flex-shrink: 0; }
+      .style-field input[type="number"], .style-field select {
+        width: 130px;
+        font-size: 13px;
+        font-family: inherit;
+        padding: 6px 8px;
+        min-height: 32px;
+        border: 1px solid #C9C0AD;
+        border-radius: 6px;
+        background: #FFFFFF;
+      }
+      .style-field input[type="color"] { width: 48px; height: 32px; padding: 2px; border: 1px solid #C9C0AD; border-radius: 6px; background: #FFFFFF; }
+      .style-theme-row { display: flex; gap: 8px; }
+      .style-theme-row button { flex: 1; min-height: 40px; }
+      .style-custom-input {
+        width: 100%;
+        font-size: 13px;
+        font-family: inherit;
+        padding: 8px 10px;
+        min-height: 36px;
+        margin-top: 6px;
+        border: 1px solid #C9C0AD;
+        border-radius: 6px;
+        background: #FFFFFF;
+      }
+      .style-error { font-size: 12px; color: #A83232; margin-top: 6px; }
     </style>
   </head>
   <body>
@@ -216,8 +260,10 @@
         <button id="btn-font-up">字号 +</button>
         <button id="btn-font-down">字号 −</button>
         <button id="btn-theme">主题切换</button>
+        <button id="btn-style" title="样式抽屉（S）">⚙ 样式</button>
       </div>
     </section>
+    <aside id="style-drawer"></aside>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

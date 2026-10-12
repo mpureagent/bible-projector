@@ -74,6 +74,31 @@ describe('IPC 通道契约（action → 状态 → 广播，mock 渲染端）', 
     expect(all.at(-1)?.display).toBe(42)
   })
 
+  it('style 动作 §2.3 全字段补丁：广播 payload 字段级断言（T4-style）', () => {
+    const { invoke, broadcast, states } = setup()
+    const patch = {
+      theme: 'ocean',
+      fontSize: 108,
+      mode: 'single',
+      hideVerseNumbers: true,
+      hideTitle: true,
+      fontFamily: 'kai',
+      color: '#A0A0A0',
+      verseNumberColor: '#B0B0B0',
+      currentColor: '#C0C0C0',
+      background: '#101010',
+      backgroundImage: 'builtin:rice-paper',
+      lineHeight: 2.1,
+      letterSpacing: 0.08,
+      align: 'left',
+      margin: 14,
+    } as const
+    invoke({ type: 'style', patch })
+    expect(broadcast).toHaveBeenCalledTimes(1)
+    const payload = states().at(-1)?.style
+    expect(payload).toEqual(patch)
+  })
+
   it('非法动作（未知 type）被通道契约拒绝', () => {
     const { invoke, broadcast } = setup()
     expect(() => invoke({ type: 'hack' })).toThrow()

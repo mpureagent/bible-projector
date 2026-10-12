@@ -1,4 +1,5 @@
 import type { Action, AppState, HistoryEntry, ProjectionStyle, Selection } from '../shared/types'
+import { validateBackgroundImage } from '../shared/style'
 
 export interface PersistedConfig {
   style: ProjectionStyle
@@ -18,9 +19,39 @@ const DEFAULT_STYLE: ProjectionStyle = {
   mode: 'paragraph',
   hideVerseNumbers: false,
   hideTitle: false,
+  fontFamily: 'embedded-serif',
+  color: null,
+  verseNumberColor: null,
+  currentColor: null,
+  background: null,
+  backgroundImage: null,
+  lineHeight: 1.7,
+  letterSpacing: 0,
+  align: 'center',
+  margin: 8,
 }
 const HISTORY_CAP = 50
 const FONT_SIZE_MAX = 200 // §11：字号上限
+const FONT_SIZE_MIN = 8
+const MARGIN_MIN = 8 // §11：边距 ≥8% 安全区
+const MARGIN_MAX = 30
+const LINE_HEIGHT_RANGE: [number, number] = [1, 3]
+const LETTER_SPACING_RANGE: [number, number] = [0, 0.5]
+
+const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value))
+
+// §2.3 补丁入站清洗：非法背景图（网络 URL 等）丢弃，数值限幅
+function sanitizePatch(patch: Partial<ProjectionStyle>): Partial<ProjectionStyle> {
+  const next: Partial<ProjectionStyle> = { ...patch }
+  if (next.fontSize !== undefined) next.fontSize = clamp(next.fontSize, FONT_SIZE_MIN, FONT_SIZE_MAX)
+  if (next.margin !== undefined) next.margin = clamp(next.margin, MARGIN_MIN, MARGIN_MAX)
+  if (next.lineHeight !== undefined) next.lineHeight = clamp(next.lineHeight, ...LINE_HEIGHT_RANGE)
+  if (next.letterSpacing !== undefined) next.letterSpacing = clamp(next.letterSpacing, ...LETTER_SPACING_RANGE)
+  if (next.backgroundImage !== undefined && validateBackgroundImage(next.backgroundImage) !== null) {
+    next.backgroundImage = null
+  }
+  return next
+}
 
 export class AppStateStore {
   private state: AppState
@@ -87,12 +118,8 @@ function reduce(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'select':
       return { ...state, selection: action.selection }
-    case 'style': {
-      const patch = action.patch.fontSize
-        ? { ...action.patch, fontSize: Math.min(FONT_SIZE_MAX, Math.max(8, action.patch.fontSize)) }
-        : action.patch
-      return { ...state, style: { ...state.style, ...patch } }
-    }
+    case 'style':
+      return { ...state, style: { ...state.style, ...sanitizePatch(action.patch) } }
     case 'blank':
       return { ...state, blank: action.value }
     case 'lock':

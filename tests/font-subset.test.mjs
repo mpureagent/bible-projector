@@ -3,7 +3,8 @@ import { readFileSync, statSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { extractCharset } from '../scripts/subset-font.mjs'
-import { FONT_FALLBACK_STACK, SUBSET_FONT_FAMILY, injectSubsetFontFace } from '../src/shared/fonts'
+import { FONT_FALLBACK_STACK, SUBSET_FONT_FAMILY } from '../src/shared/fonts'
+import { injectSubsetFontFace } from '../src/shared/font-dom'
 
 // T4-font：字符集提取（确定性、可审计）+ 子集产物覆盖率 100% + 实测字节数（§2.4 ≤5MB）
 
