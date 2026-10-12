@@ -39,7 +39,54 @@
         max-height: 78vh;
         overflow-y: auto;
       }
-      .tab-bar { display: flex; gap: 8px; margin-bottom: 10px; }
+      .search-box { position: relative; }
+      .search-input {
+        width: 100%;
+        font-size: 14px;
+        font-family: inherit;
+        padding: 9px 12px;
+        min-height: 40px;
+        border: 1px solid #C9C0AD;
+        border-radius: 6px;
+        background: #FFFDF8;
+        color: #26221C;
+      }
+      .search-input:focus { outline: 2px solid #A8863C; outline-offset: -1px; }
+      .search-dropdown {
+        position: absolute;
+        top: 44px;
+        left: 0;
+        right: 0;
+        z-index: 5;
+        list-style: none;
+        margin: 0;
+        padding: 4px;
+        background: #FFFDF8;
+        border: 1px solid #C9C0AD;
+        border-radius: 6px;
+        box-shadow: 0 4px 10px rgba(38, 34, 28, 0.12);
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      .search-item {
+        display: flex;
+        width: 100%;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        padding: 8px 10px;
+        min-height: 36px;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        cursor: pointer;
+        font-family: inherit;
+        text-align: left;
+      }
+      .search-item:hover { background: #F3EDDF; }
+      .search-item-meta { font-size: 11px; color: #8C8375; font-family: ui-monospace, monospace; }
+      .tab-bar { display: flex; gap: 8px; margin: 12px 0 10px; }
       .tab-btn {
         font-size: 14px;
         padding: 6px 14px;
@@ -126,7 +173,9 @@
       <span id="banner"></span>
     </header>
     <div id="layout">
-      <div id="books-panel"></div>
+      <div id="books-panel">
+        <div id="search-panel"></div>
+      </div>
       <div id="chapters-panel" hidden></div>
       <div id="verses-panel" hidden></div>
     </div>

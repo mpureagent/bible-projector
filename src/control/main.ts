@@ -1,6 +1,7 @@
 import type { AppState, ThemeName } from '../shared/types'
 import { BooksView } from './books-view'
 import { ChaptersView } from './chapters-view'
+import { SearchView } from './search-view'
 import { VersesView } from './verses-view'
 
 const THEMES: ThemeName[] = ['ink', 'ivory', 'ocean']
@@ -19,6 +20,9 @@ const chaptersView = new ChaptersView(document.getElementById('chapters-panel')!
   },
 })
 new BooksView(document.getElementById('books-panel')!, {
+  onBook: (sn) => chaptersView.setBook(sn),
+})
+new SearchView(document.getElementById('search-panel')!, {
   onBook: (sn) => chaptersView.setBook(sn),
 })
 
