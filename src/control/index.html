@@ -30,14 +30,15 @@
         display: none;
       }
       #banner.visible { display: inline-block; }
-      #layout { display: grid; grid-template-columns: 320px 1fr; gap: 14px; padding: 14px 18px; }
-      #books-panel, #chapters-panel {
+      #layout { display: grid; grid-template-columns: 320px 230px 1fr; gap: 14px; padding: 14px 18px; }
+      #books-panel, #chapters-panel, #verses-panel {
         border: 1px solid #E2DCCF;
         border-radius: 6px;
         padding: 12px 14px;
         background: #FFFFFF;
+        max-height: 78vh;
+        overflow-y: auto;
       }
-      #chapters-panel { min-height: 400px; }
       .tab-bar { display: flex; gap: 8px; margin-bottom: 10px; }
       .tab-btn {
         font-size: 14px;
@@ -74,7 +75,25 @@
         font-family: inherit;
       }
       .chapter-btn:hover { background: #F3EDDF; }
-      .chapters-title { font-size: 13px; margin: 0 0 10px; color: #A8863C; font-weight: 600; }
+      .chapters-title, .verses-title { font-size: 13px; margin: 0 0 10px; color: #A8863C; font-weight: 600; }
+      .verse-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+      .verse-btn {
+        display: block;
+        width: 100%;
+        text-align: left;
+        font-size: 13px;
+        line-height: 1.5;
+        padding: 6px 10px;
+        min-height: 32px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: #FFFDF8;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .verse-btn:hover { background: #F3EDDF; }
+      .verse-btn.in-range { background: #F3E2C8; border-color: #D8B88A; }
+      .verse-btn .vnum { font-size: 10px; margin-right: 6px; color: #A8863C; }
       section.controls-box {
         margin: 14px 18px;
         border: 1px solid #E2DCCF;
@@ -109,6 +128,7 @@
     <div id="layout">
       <div id="books-panel"></div>
       <div id="chapters-panel" hidden></div>
+      <div id="verses-panel" hidden></div>
     </div>
     <section class="controls-box">
       <dl>

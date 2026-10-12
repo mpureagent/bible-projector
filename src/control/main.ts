@@ -1,13 +1,22 @@
 import type { AppState, ThemeName } from '../shared/types'
 import { BooksView } from './books-view'
 import { ChaptersView } from './chapters-view'
+import { VersesView } from './verses-view'
 
 const THEMES: ThemeName[] = ['ink', 'ivory', 'ocean']
 
 let current: AppState | null = null
 
+const versesView = new VersesView(document.getElementById('verses-panel')!, {
+  onSelect: (selection) => {
+    void window.bridge.dispatch({ type: 'select', selection })
+  },
+})
 const chaptersView = new ChaptersView(document.getElementById('chapters-panel')!, {
-  onChapter: () => {},
+  onChapter: (chapter) => {
+    const book = chaptersView.getBook()
+    if (book !== null) versesView.setChapter(book, chapter)
+  },
 })
 new BooksView(document.getElementById('books-panel')!, {
   onBook: (sn) => chaptersView.setBook(sn),

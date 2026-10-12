@@ -95,6 +95,26 @@ async function captureSmokeEvidence(
   const delayMs = Number(process.env.SMOKE_CAPTURE_DELAY ?? 1200)
   await new Promise((resolve) => setTimeout(resolve, delayMs))
   mkdirSync(outDir, { recursive: true })
+  // E2E（§6.1 三次点击上屏）：SMOKE_SELECT=gen-1-1 时在控制窗 UI 上真实点击 创世记→1 章→1 节，
+  // 经 IPC action → store → 广播 → 投影窗渲染，随后截图留证
+  if (process.env.SMOKE_SELECT === 'gen-1-1') {
+    await control.webContents.executeJavaScript(
+      `(() => {
+        const book = [...document.querySelectorAll('.book-btn')].find((b) => b.title === '创世记')
+        book && book.click()
+        const chapter = document.querySelector('.chapter-btn')
+        chapter && chapter.click()
+        const verse = [...document.querySelectorAll('.verse-btn')].find((b) => b.dataset.verse === '1')
+        verse && verse.click()
+        return true
+      })()`,
+    )
+    const stageText: string = await projection.webContents.executeJavaScript(
+      `document.getElementById('stage')?.innerText ?? ''`,
+    )
+    console.log(`[smoke] projection-stage=${JSON.stringify(stageText)}`)
+    console.log(`[smoke] projection-has-U+3000=${stageText.includes('　')}`)
+  }
   console.log(
     `[smoke] control=${control.webContents.getURL()} projection=${projection.webContents.getURL()}`,
   )
