@@ -3,24 +3,26 @@ import type { AppState } from '../shared/types'
 import { IPC_CHANNELS } from '../shared/types'
 import { registerIpc } from './ipc'
 import { fsPersistence } from './persist-fs'
-import { createHotplugMachine } from './hotplug'
 import { AppStateStore } from './store'
 import {
   createControlWindow,
   createProjectionWindow,
+  destroyProjectionWindow,
   displayById,
   gateProjectionMessage,
-  hideProjectionWindow,
-  moveProjectionTo,
+  isSingleDisplay,
   showProjectionWindow,
   wireHotplug,
 } from './windows'
 
-// M1 入口：生命周期、单实例锁（§11 风险表）、状态中枢与双窗装配
+// M1 入口：生命周期、单实例锁（§11 风险表）、状态中枢与双窗装配。
+// T7-projection（R1）：投影窗默认不创建；「投屏」→ 创建并上屏，「取消投屏」→ 销毁。
+// 主屏永不劫持：工作窗可最小化，投影窗独立存活，show 不抢焦点。
 
 const SMOKE_CAPTURE = process.env.SMOKE_CAPTURE === '1'
 
 let control: BrowserWindow | null = null
+let projection: BrowserWindow | null = null
 let quitting = false
 
 if (!app.requestSingleInstanceLock()) {
@@ -50,24 +52,6 @@ async function start(): Promise<void> {
   if (SMOKE_CAPTURE) store.dispatch({ type: 'projecting', value: true })
   control = createControlWindow()
 
-  const target = displayById(store.getState().display) ?? screen.getPrimaryDisplay()
-  const machine = createHotplugMachine(target.id, 'ASSIGNED')
-  const projection = createProjectionWindow(target, SMOKE_CAPTURE)
-
-  const listDisplays = () => {
-    const primary = screen.getPrimaryDisplay()
-    return screen.getAllDisplays().map((d) => ({
-      id: d.id,
-      label: `${d.size.width}×${d.size.height} @(${d.bounds.x},${d.bounds.y})`,
-      primary: d.id === primary.id,
-    }))
-  }
-
-  const setProjectionFullscreen = (value?: boolean): void => {
-    if (projection.isDestroyed()) return
-    projection.setFullScreen(value ?? !projection.isFullScreen())
-  }
-
   const broadcast = (channel: string, payload: unknown): void => {
     for (const win of [control, projection]) {
       if (!win || win.isDestroyed()) continue
@@ -76,28 +60,15 @@ async function start(): Promise<void> {
     }
   }
 
-  // 单屏预览窗点关闭 = 取消投屏（窗口隐藏而非销毁，P 键可再次唤起；退出期放行真关闭）
-  projection.on('close', (event) => {
-    if (quitting || projection.isDestroyed()) return
-    event.preventDefault()
-    if (store.getState().projecting) {
-      const next = store.dispatch({ type: 'projecting', value: false })
-      broadcast(IPC_CHANNELS.state, next)
-    }
-    projection.hide()
-  })
-
   registerIpc({
     ipcMain,
     store,
     broadcast: (channel, payload) => broadcast(channel, payload),
-    getDisplays: listDisplays,
-    setProjectionFullscreen,
   })
 
   wireHotplug({
-    machine,
-    projection,
+    getTargetId: () => store.getState().display,
+    getProjection: () => projection,
     control,
     persistDisplay: (id) => {
       if (store.getState().display !== id) {
@@ -106,45 +77,69 @@ async function start(): Promise<void> {
     },
   })
 
-  // projecting 迁移：true→按当前显示器上屏（单屏为预览窗）并把当前选区推上投影窗；
-  // false→隐藏投影窗。未投屏时选经广播已在 gateProjectionMessage 处被拦截
+  // 投屏生命周期：true → 按需创建投影窗并上屏（多屏自动全屏第二屏/单屏本机浮动窗），
+  // 首帧加载完成后推送当前状态；false → 销毁投影窗。取消投屏 = 窗口销毁（R1）
   const applyProjecting = (state: AppState): void => {
-    if (projection.isDestroyed()) return
     if (state.projecting) {
+      if (projection && !projection.isDestroyed()) {
+        const target = displayById(state.display) ?? screen.getPrimaryDisplay()
+        showProjectionWindow(projection, target)
+        return
+      }
       const target = displayById(state.display) ?? screen.getPrimaryDisplay()
-      showProjectionWindow(projection, target)
+      const win = createProjectionWindow(target, false)
+      projection = win
+      win.on('closed', () => {
+        if (projection === win) projection = null
+      })
+      // 用户点单屏浮动窗的 ✕：等价取消投屏
+      win.on('close', (event) => {
+        if (quitting || win.isDestroyed()) return
+        event.preventDefault()
+        if (store.getState().projecting) {
+          const next = store.dispatch({ type: 'projecting', value: false })
+          broadcast(IPC_CHANNELS.state, next)
+        } else {
+          destroyProjectionWindow(win)
+        }
+      })
+      // 单屏本机浮动窗：顶栏一行提示（电视请用 Win+P 扩展模式）
+      if (isSingleDisplay()) {
+        void win.webContents.once('did-finish-load', () => {
+          if (!win.isDestroyed()) {
+            win.webContents.send(IPC_CHANNELS.banner, { text: '电视请用 Win+P 扩展模式' })
+          }
+        })
+      }
+      win.webContents.once('did-finish-load', () => {
+        const current = store.getState()
+        if (current.projecting && !win.isDestroyed()) {
+          win.webContents.send(IPC_CHANNELS.state, current)
+        }
+      })
+      showProjectionWindow(win, target)
     } else {
-      hideProjectionWindow(projection)
+      if (projection && !projection.isDestroyed()) {
+        destroyProjectionWindow(projection)
+      }
+      projection = null
     }
   }
-  projection.webContents.once('did-finish-load', () => {
-    const state = store.getState()
-    if (state.projecting && !projection.isDestroyed()) {
-      projection.webContents.send(IPC_CHANNELS.state, state)
-    }
-  })
 
-  // 用户在顶栏改选显示器（IPC display 动作）→ 状态机 assign
-  let lastDisplay = store.getState().display
   let lastProjecting = store.getState().projecting
   store.subscribe((state: AppState) => {
     if (state.projecting !== lastProjecting) {
       lastProjecting = state.projecting
       applyProjecting(state)
     }
-    if (state.display !== lastDisplay && state.display !== null) {
-      lastDisplay = state.display
-      for (const effect of machine.handle({ kind: 'assign', id: state.display })) {
-        if (effect.type === 'move-to-display') {
-          const target = displayById(effect.id)
-          if (target) moveProjectionTo(projection, target)
-        }
-      }
-    }
   })
 
+  // 烟测路径需要投影窗在场：直接进入投屏生命周期
   if (SMOKE_CAPTURE) {
-    await captureSmokeEvidence(control, projection, setProjectionFullscreen)
+    applyProjecting(store.getState())
+    if (projection) {
+      await captureSmokeEvidence(control, projection)
+    }
   }
 }
 
@@ -163,7 +158,6 @@ async function logStage(projection: BrowserWindow): Promise<void> {
 async function captureSmokeEvidence(
   control: BrowserWindow,
   projection: BrowserWindow,
-  setProjectionFullscreen: (value?: boolean) => void,
 ): Promise<void> {
   const { mkdirSync, writeFileSync } = await import('node:fs')
   const { join } = await import('node:path')
@@ -226,31 +220,23 @@ async function captureSmokeEvidence(
     `document.fonts.ready.then(() => document.fonts.check('16px "Bible Serif SC"'))`,
   )
   console.log(`[smoke] subset-font-loaded=${fontLoaded}`)
-  // T4-keys E2E：控制窗真实派发 keydown（B/B/+/↓/L/B/L——锁屏下 B 应被拦截），
-  // 终态断据：blank=false（第 3 次 B 被锁屏拦截）、fontSize +12、selection 翻到下一节
+  // T7 E2E：控制窗真实派发 keydown（P/+ /↓）——投屏开合与字号/翻节，终态断据
   if (process.env.SMOKE_KEYS === '1') {
     const before: AppState = await control.webContents.executeJavaScript('window.bridge.getState()')
     const after: AppState = await control.webContents.executeJavaScript(
       `(async () => {
         const wait = (ms) => new Promise((r) => setTimeout(r, ms))
-        // 逐键等待广播回流，模拟真实节奏（同步连发会读到陈旧本地状态）
         const press = async (key) => {
           document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
           await wait(150)
         }
-        await press('b'); await press('b'); await press('+'); await press('ArrowDown')
-        await press('l'); await press('b'); await press('l')
+        await press('+'); await press('ArrowDown')
         await wait(300)
         return window.bridge.getState()
       })()`,
     )
-    console.log(`[smoke] keys-before=${JSON.stringify({ blank: before.blank, lock: before.lock, fontSize: before.style.fontSize, sel: before.selection })}`)
-    console.log(`[smoke] keys-after=${JSON.stringify({ blank: after.blank, lock: after.lock, fontSize: after.style.fontSize, sel: after.selection })}`)
-    // 投影全屏切换（F/Esc 窗口级接线）：真实 setFullScreen + 回落
-    setProjectionFullscreen(true)
-    const fsOn: boolean = projection.isFullScreen()
-    setProjectionFullscreen(false)
-    console.log(`[smoke] projection-fullscreen-toggle=${fsOn}->${projection.isFullScreen()}`)
+    console.log(`[smoke] keys-before=${JSON.stringify({ projecting: before.projecting, fontSize: before.style.fontSize, sel: before.selection })}`)
+    console.log(`[smoke] keys-after=${JSON.stringify({ projecting: after.projecting, fontSize: after.style.fontSize, sel: after.selection })}`)
   }
   console.log(
     `[smoke] control=${control.webContents.getURL()} projection=${projection.webContents.getURL()}`,

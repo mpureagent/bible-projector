@@ -24,8 +24,6 @@ const state: AppState = {
     align: 'center',
     margin: 8,
   },
-  blank: false,
-  lock: false,
   display: null,
   projecting: true,
 }
@@ -34,15 +32,19 @@ describe('T6-project 投影窗 Esc 退出投屏', () => {
   beforeEach(() => {
     const dispatch = vi.fn()
     const onState = vi.fn(() => () => {})
+    let bannerCallback: ((banner: { text: string | null }) => void) | null = null
+    const onBanner = vi.fn((callback: (banner: { text: string | null }) => void) => {
+      bannerCallback = callback
+      return () => {}
+    })
     ;(window as unknown as { bridge: unknown }).bridge = {
       dispatch,
       onState,
+      onBanner,
       getState: () => Promise.resolve(state),
       getHistory: () => Promise.resolve([]),
-      getDisplays: () => Promise.resolve([]),
-      setProjectionFullscreen: () => Promise.resolve(),
-      onBanner: () => () => {},
     }
+    ;(window as unknown as { __bannerCallback: unknown }).__bannerCallback = () => bannerCallback
     vi.resetModules()
   })
 
@@ -60,5 +62,17 @@ describe('T6-project 投影窗 Esc 退出投屏', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'b', bubbles: true, cancelable: true }))
     const bridge = (window as unknown as { bridge: { dispatch: ReturnType<typeof vi.fn> } }).bridge
     expect(bridge.dispatch).not.toHaveBeenCalled()
+  })
+
+  it('T7 R1：banner 通道驱动顶栏 Win+P 提示显隐', async () => {
+    const hint = document.createElement('div')
+    hint.id = 'hint'
+    document.body.appendChild(hint)
+    await import('../../src/projection/main')
+    const banner = (window as unknown as { __bannerCallback: () => ((banner: { text: string | null }) => void) | null }).__bannerCallback()
+    banner?.({ text: '电视请用 Win+P 扩展模式' })
+    expect(hint.style.display).toBe('block')
+    banner?.({ text: null })
+    expect(hint.style.display).toBe('none')
   })
 })

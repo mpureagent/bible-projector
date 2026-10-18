@@ -33,7 +33,7 @@ describe('T3-cascade 三次点击上屏链路（action → AppState → 广播 p
     const store = new AppStateStore(noopPersistence)
     const broadcast = vi.fn()
     const ipcMain = fakeIpcMain()
-    registerIpc({ ipcMain, store, broadcast, getDisplays: () => [], setProjectionFullscreen: () => {} })
+    registerIpc({ ipcMain, store, broadcast })
     const handler = ipcMain.handlers.find((h) => h.channel === IPC_CHANNELS.action)
     if (!handler) throw new Error('action handler 未注册')
 
@@ -52,7 +52,7 @@ describe('T3-cascade 三次点击上屏链路（action → AppState → 广播 p
     const store = new AppStateStore(noopPersistence)
     const broadcast = vi.fn()
     const ipcMain = fakeIpcMain()
-    registerIpc({ ipcMain, store, broadcast, getDisplays: () => [], setProjectionFullscreen: () => {} })
+    registerIpc({ ipcMain, store, broadcast })
     const handler = ipcMain.handlers.find((h) => h.channel === IPC_CHANNELS.action)!
 
     void handler.invoke({ type: 'select', selection: { sn: 1, chapter: 1, verses: { from: 2, to: 2 } } })
@@ -71,7 +71,7 @@ describe('T3-cascade 三次点击上屏链路（action → AppState → 广播 p
     const store = new AppStateStore(noopPersistence)
     const broadcast = vi.fn()
     const ipcMain = fakeIpcMain()
-    registerIpc({ ipcMain, store, broadcast, getDisplays: () => [], setProjectionFullscreen: () => {} })
+    registerIpc({ ipcMain, store, broadcast })
     const handler = ipcMain.handlers.find((h) => h.channel === IPC_CHANNELS.action)!
 
     void handler.invoke({ type: 'select', selection: { sn: 1, chapter: 1, verses: { from: 1, to: 1 } } })

@@ -31,7 +31,7 @@ function setup() {
   const store = new AppStateStore(noopPersistence)
   const broadcast = vi.fn()
   const ipcMain = fakeIpcMain()
-  registerIpc({ ipcMain, store, broadcast, getDisplays: () => [], setProjectionFullscreen: () => {} })
+  registerIpc({ ipcMain, store, broadcast })
   const handler = ipcMain.handlers.find((h) => h.channel === IPC_CHANNELS.action)
   if (!handler) throw new Error('action handler 未注册')
   const invoke = (action: unknown) => handler.invoke(action)
@@ -43,7 +43,7 @@ function setup() {
 describe('IPC 通道契约（action → 状态 → 广播，mock 渲染端）', () => {
   it('action 通道注册于契约常量', () => {
     const { invoke } = setup()
-    void invoke({ type: 'blank', value: false })
+    void invoke({ type: 'projecting', value: true })
   })
 
   it('select 动作：状态更新、广播携带新状态、返回值即状态', () => {
@@ -60,18 +60,23 @@ describe('IPC 通道契约（action → 状态 → 广播，mock 渲染端）', 
     expect(states()).toEqual([result])
   })
 
-  it('style/blank/lock/display 动作同样触发状态→广播', () => {
+  it('style/display/projecting 动作同样触发状态→广播', () => {
     const { invoke, broadcast, states } = setup()
-    invoke({ type: 'blank', value: true })
-    invoke({ type: 'lock', value: true })
     invoke({ type: 'style', patch: { fontSize: 100 } })
     invoke({ type: 'display', id: 42 })
-    expect(broadcast).toHaveBeenCalledTimes(4)
+    invoke({ type: 'projecting', value: true })
+    expect(broadcast).toHaveBeenCalledTimes(3)
     const all = states()
-    expect(all.at(-1)?.blank).toBe(true)
-    expect(all.at(-1)?.lock).toBe(true)
     expect(all.at(-1)?.style.fontSize).toBe(100)
     expect(all.at(-1)?.display).toBe(42)
+    expect(all.at(-1)?.projecting).toBe(true)
+  })
+
+  it('T7 R1：blank/lock 动作已被契约拒绝（功能不存在）', () => {
+    const { invoke, broadcast } = setup()
+    expect(() => invoke({ type: 'blank', value: true })).toThrow()
+    expect(() => invoke({ type: 'lock', value: true })).toThrow()
+    expect(broadcast).not.toHaveBeenCalled()
   })
 
   it('style 动作 §2.3 全字段补丁：广播 payload 字段级断言（T4-style）', () => {

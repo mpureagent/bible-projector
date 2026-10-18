@@ -20,7 +20,7 @@ function fakePersistence() {
 }
 
 describe('AppState 状态中枢（§3.2 单向数据流）', () => {
-  it('初始状态：selection=null、blank=false、lock=false、display=null', () => {
+  it('初始状态：selection=null、display=null、projecting=false（无 blank/lock 字段）', () => {
     const store = new AppStateStore(fakePersistence().persistence)
     expect(store.getState()).toEqual({
       selection: null,
@@ -41,11 +41,11 @@ describe('AppState 状态中枢（§3.2 单向数据流）', () => {
         align: 'center',
         margin: 8,
       },
-      blank: false,
-      lock: false,
       display: null,
       projecting: false,
     })
+    expect('blank' in store.getState()).toBe(false)
+    expect('lock' in store.getState()).toBe(false)
   })
 
   it('select 动作更新 selection 并写入历史（最近 50 条）', () => {
@@ -125,13 +125,13 @@ describe('AppState 状态中枢（§3.2 单向数据流）', () => {
     expect(store.getState().display).toBe(7)
   })
 
-  it('订阅者收到每次状态变更', () => {
+  it('订阅者收到每次状态变更（T7：projecting 取代 blank）', () => {
     const store = new AppStateStore(fakePersistence().persistence)
     const listener = vi.fn()
     store.subscribe(listener)
-    const action: Action = { type: 'blank', value: true }
+    const action: Action = { type: 'projecting', value: true }
     store.dispatch(action)
     expect(listener).toHaveBeenCalledTimes(1)
-    expect(store.getState().blank).toBe(true)
+    expect(store.getState().projecting).toBe(true)
   })
 })

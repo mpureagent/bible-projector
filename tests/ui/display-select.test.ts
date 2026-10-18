@@ -1,55 +1,28 @@
-// @vitest-environment happy-dom
-import { describe, expect, it, vi } from 'vitest'
-import { DisplaySelect } from '../../src/control/display-select'
-import type { DisplayInfo } from '../../src/shared/types'
+// T7-projection（R1）：显示器下拉删除——控制窗不再有手动指派显示器 UI；
+// 多屏自动全屏第二屏、热插拔兜底全在主进程（windows.ts / hotplug.ts）。
+import { existsSync, readFileSync } from 'node:fs'
+import { describe, expect, it } from 'vitest'
 
-// T4-keys：目标显示器下拉——display.id 指派、主屏标识、状态同步
-
-const displays: DisplayInfo[] = [
-  { id: 101, label: '1024×768 @(0,0)', primary: true },
-  { id: 202, label: '1920×1080 @(1024,0)', primary: false },
-]
-
-function mount(onAssign = vi.fn()) {
-  const root = document.createElement('div')
-  document.body.appendChild(root)
-  const view = new DisplaySelect(root, { onAssign })
-  return { view, root, onAssign }
-}
-
-describe('T4-keys 显示器下拉', () => {
-  it('renderState 构建选项：含主屏标识，value=display.id', () => {
-    const { root } = mount()
-    const view = new DisplaySelect(root, { onAssign: () => {} })
-    view.renderState(displays, null)
-    const options = [...root.querySelectorAll('option')]
-    expect(options).toHaveLength(2)
-    expect(options[0]?.value).toBe('101')
-    expect(options[0]?.textContent).toContain('主屏')
-    expect(options[1]?.value).toBe('202')
+describe('T7-projection 显示器下拉不存在（R1 删除令）', () => {
+  it('控制窗 DOM 无 display-panel / 显示器 select 元素', () => {
+    const source = readFileSync('src/control/index.html', 'utf-8')
+    expect(source).not.toMatch(/id="display-panel"/)
+    expect(source).not.toMatch(/<select[^>]*display/)
   })
 
-  it('改选 dispatch display.id（持久化指派语义）', () => {
-    const { root, onAssign } = mount()
-    const view = new DisplaySelect(root, { onAssign })
-    view.renderState(displays, null)
-    const select = root.querySelector<HTMLSelectElement>('select')!
-    select.value = '202'
-    select.dispatchEvent(new Event('change'))
-    expect(onAssign).toHaveBeenCalledWith(202)
+  it('控制窗 main.ts 不再实例化 DisplaySelect', () => {
+    const source = readFileSync('src/control/main.ts', 'utf-8')
+    expect(source).not.toContain('DisplaySelect')
+    expect(source).not.toContain('getDisplays')
   })
 
-  it('状态同步：display=202 时选中项随状态', () => {
-    const { root } = mount()
-    const view = new DisplaySelect(root, { onAssign: () => {} })
-    view.renderState(displays, 202)
-    expect(root.querySelector<HTMLSelectElement>('select')?.value).toBe('202')
+  it('源文件 display-select.ts 已删除', () => {
+    expect(existsSync('src/control/display-select.ts')).toBe(false)
   })
 
-  it('display=null 选中主屏', () => {
-    const { root } = mount()
-    const view = new DisplaySelect(root, { onAssign: () => {} })
-    view.renderState(displays, null)
-    expect(root.querySelector<HTMLSelectElement>('select')?.value).toBe('101')
+  it('窗口层保留 display 状态动作（断开兜底参考用，非 UI 指派）', () => {
+    const source = readFileSync('src/main/windows.ts', 'utf-8')
+    expect(source).toContain('displayById')
+    expect(source).toContain('persistDisplay')
   })
 })

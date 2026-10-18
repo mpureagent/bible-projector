@@ -1,44 +1,38 @@
-// §6.3 快捷键映射（纯函数）：键 → 意图。锁屏下除 L 外全部禁用（防误触语义）。
-// 窗口级意图（全屏/抽屉/退出全屏）由控制窗接线落地，其余为 Action 直发。
+// §6.3 快捷键映射（纯函数）：键 → 意图。
+// T7-projection（R1 定稿）：黑场（B）与锁屏（L）功能整体删除；
+// F / Esc = 退出投屏；P = 投屏/取消投屏；±字号；↑↓ 翻节高亮；PgUp/PgDn 翻章。
+// Esc 的抽屉语义链（抽屉开 → 关抽屉）由控制窗 keyboard.ts 持有抽屉状态判定。
 import { bookBySn, chapterVerses } from './bible'
 import type { Action, AppState, Selection } from './types'
 
 export type KeyIntent =
   | { kind: 'action'; action: Action }
-  | { kind: 'toggle-fullscreen' }
   | { kind: 'toggle-drawer' }
-  | { kind: 'exit-fullscreen' }
 
 const FONT_STEP = 12
 
 export function mapKey(key: string, state: AppState): KeyIntent | null {
-  if (key === 'l' || key === 'L') {
-    return { kind: 'action', action: { type: 'lock', value: !state.lock } }
-  }
-  if (state.lock) return null
-
   const sel = state.selection
   const verseSelect = (selection: Selection): KeyIntent => ({ kind: 'action', action: { type: 'select', selection } })
 
   switch (key) {
-    case 'b':
-    case 'B':
-      return { kind: 'action', action: { type: 'blank', value: !state.blank } }
     case 'p':
     case 'P':
-      // T6-project：投屏/取消投屏（与控制窗大按钮同义）
+      // 投屏/取消投屏（与控制窗大按钮同义）
       return { kind: 'action', action: { type: 'projecting', value: !state.projecting } }
     case 'f':
     case 'F':
-      return { kind: 'toggle-fullscreen' }
+      // R1：F 或 Esc = 退出投屏（投屏中才产生意图）
+      return state.projecting
+        ? { kind: 'action', action: { type: 'projecting', value: false } }
+        : null
     case 's':
     case 'S':
       return { kind: 'toggle-drawer' }
     case 'Escape':
-      // Esc：黑场开 → 一键恢复；否则退出全屏
-      return state.blank
-        ? { kind: 'action', action: { type: 'blank', value: false } }
-        : { kind: 'exit-fullscreen' }
+      return state.projecting
+        ? { kind: 'action', action: { type: 'projecting', value: false } }
+        : null
     case '+':
     case '=':
       return { kind: 'action', action: { type: 'style', patch: { fontSize: state.style.fontSize + FONT_STEP } } }

@@ -1,7 +1,6 @@
 import type { AppState, ThemeName } from '../shared/types'
 import { applyFontStack } from '../shared/font-dom'
 import { createKeyboardController } from './keyboard'
-import { DisplaySelect } from './display-select'
 import { BooksView } from './books-view'
 import { ChaptersView } from './chapters-view'
 import { HistoryView } from './history-view'
@@ -61,18 +60,7 @@ window.bridge.onBanner(({ text }) => {
   el.classList.toggle('visible', text !== null && text !== '')
 })
 
-// T4-keys：§6.3 快捷键全集（锁屏下除 L 外禁用）+ 目标显示器下拉（display.id 指派）
-const displaySelect = new DisplaySelect(document.getElementById('display-panel')!, {
-  onAssign: (id) => {
-    void window.bridge.dispatch({ type: 'display', id })
-  },
-})
-const refreshDisplays = (): void => {
-  void window.bridge.getDisplays().then((displays) => {
-    displaySelect.renderState(displays, current?.display ?? null)
-  })
-}
-refreshDisplays()
+// T4-keys：§6.3 快捷键全集 + R1：显示器下拉删除（自动指派/热插拔兜底全在主进程）
 
 function render(state: AppState): void {
   current = state
@@ -88,11 +76,8 @@ function render(state: AppState): void {
     btnProject.classList.toggle('active', state.projecting)
   }
   set('st-style', `${state.style.theme} / ${state.style.fontSize}px`)
-  set('st-blank', String(state.blank))
-  set('st-lock', String(state.lock))
   set('st-display', String(state.display))
   styleView.renderState(state.style)
-  refreshDisplays()
   refreshHistory()
 }
 
@@ -102,8 +87,6 @@ const on = (id: string, fn: () => void) => {
 }
 
 on('btn-project', () => void window.bridge.dispatch({ type: 'projecting', value: !(current?.projecting ?? false) }))
-on('btn-blank', () => void window.bridge.dispatch({ type: 'blank', value: !(current?.blank ?? false) }))
-on('btn-lock', () => void window.bridge.dispatch({ type: 'lock', value: !(current?.lock ?? false) }))
 on('btn-font-up', () => void window.bridge.dispatch({ type: 'style', patch: { fontSize: (current?.style.fontSize ?? 72) + 12 } }))
 on('btn-font-down', () => void window.bridge.dispatch({ type: 'style', patch: { fontSize: Math.max(24, (current?.style.fontSize ?? 72) - 12) } }))
 on('btn-theme', () => {
@@ -112,7 +95,8 @@ on('btn-theme', () => {
 })
 
 // T4-style：样式抽屉（齿轮按钮 / S 键唤出），全部变更即时 dispatch → 广播投影窗
-const styleView = new StyleView(document.getElementById('style-drawer')!, {
+const styleViewRoot = document.getElementById('style-drawer')!
+const styleView = new StyleView(styleViewRoot, {
   onPatch: (patch) => {
     void window.bridge.dispatch({ type: 'style', patch })
   },
@@ -124,10 +108,9 @@ createKeyboardController({
   dispatch: (action) => {
     void window.bridge.dispatch(action)
   },
+  isDrawerOpen: () => !styleViewRoot.hidden,
+  closeDrawer: () => styleView.setVisible(false),
   toggleDrawer: () => styleView.toggle(),
-  setFullscreen: (value) => {
-    void window.bridge.setProjectionFullscreen(value)
-  },
 })
 
 export {}

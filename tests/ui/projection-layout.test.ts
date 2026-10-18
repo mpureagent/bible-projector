@@ -35,8 +35,6 @@ const style = (patch: Partial<ProjectionStyle>): ProjectionStyle => ({ ...baseSt
 const stateWith = (patch: Partial<AppState>): AppState => ({
   selection: null,
   style: style({}),
-  blank: false,
-  lock: false,
   display: null,
   projecting: false,
   ...patch,

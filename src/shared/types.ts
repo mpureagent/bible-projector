@@ -1,5 +1,6 @@
 // 共享类型与 IPC 通道契约（§3.2 / §5.3 关联）。
-// AppState = { selection, style, blank, lock, display }——main 为状态唯一持有者。
+// AppState = { selection, style, display }——main 为状态唯一持有者。
+// T7-projection（R1）：黑场 blank 与锁屏 lock 全链路移除；projecting 为会话态。
 
 import type { Align, FontChoice } from './style'
 
@@ -41,18 +42,14 @@ export interface Selection {
 export interface AppState {
   selection: Selection | null
   style: ProjectionStyle
-  blank: boolean
-  lock: boolean
   display: number | null
-  // T6-project：投屏中。false=本地阅读模式（选经只更新控制窗，不广播投影窗）
+  // T6/T7：投屏中。false=本地阅读模式（选经只更新控制窗，不广播投影窗）
   projecting: boolean
 }
 
 export type Action =
   | { type: 'select'; selection: Selection | null }
   | { type: 'style'; patch: Partial<ProjectionStyle> }
-  | { type: 'blank'; value: boolean }
-  | { type: 'lock'; value: boolean }
   | { type: 'display'; id: number }
   | { type: 'projecting'; value: boolean }
 
@@ -65,19 +62,11 @@ export const IPC_CHANNELS = {
   action: 'app:action',
   getState: 'app:get-state',
   getHistory: 'app:get-history',
-  getDisplays: 'app:get-displays',
-  projectionFullscreen: 'app:projection-fullscreen',
   state: 'app:state',
   banner: 'app:banner',
 } as const
 
-export interface DisplayInfo {
-  id: number
-  label: string
-  primary: boolean
-}
-
-const ACTION_TYPES = new Set(['select', 'style', 'blank', 'lock', 'display', 'projecting'])
+const ACTION_TYPES = new Set(['select', 'style', 'display', 'projecting'])
 
 export function isAction(value: unknown): value is Action {
   if (typeof value !== 'object' || value === null) return false
@@ -89,8 +78,6 @@ export interface BridgeApi {
   dispatch(action: Action): Promise<AppState>
   getState(): Promise<AppState>
   getHistory(): Promise<HistoryEntry[]>
-  getDisplays(): Promise<DisplayInfo[]>
-  setProjectionFullscreen(value?: boolean): Promise<void>
   onState(callback: (state: AppState) => void): () => void
   onBanner(callback: (banner: { text: string | null }) => void): () => void
 }

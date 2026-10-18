@@ -36,6 +36,17 @@
       .verse.current .vtext { text-shadow: 0 0 24px rgba(232, 200, 122, 0.25); }
       .verse sup.vnum { font-size: 0.38em; margin-right: 0.6em; vertical-align: super; }
       .placeholder { font-size: 36px; opacity: 0.5; }
+      #hint {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 20px;
+        padding: 10px 0;
+        background: rgba(0, 0, 0, 0.55);
+        display: none;
+      }
       #meta {
         position: fixed;
         bottom: 3%;
@@ -45,16 +56,10 @@
         font-size: 18px;
         opacity: 0.55;
       }
-      .blank-overlay {
-        position: fixed;
-        inset: 0;
-        background: #000;
-        display: none;
-        z-index: 10;
-      }
     </style>
   </head>
   <body>
+    <div id="hint">电视请用 Win+P 扩展模式</div>
     <div id="stage"><div class="placeholder">圣言投屏</div></div>
     <div id="meta">—</div>
     <script type="module" src="./main.ts"></script>

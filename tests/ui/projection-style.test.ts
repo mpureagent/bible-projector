@@ -28,8 +28,6 @@ const baseStyle: ProjectionStyle = {
 const stateWith = (style: Partial<ProjectionStyle>, selectionVerse = 1): AppState => ({
   selection: { sn: 19, chapter: 119, verses: { from: selectionVerse, to: selectionVerse } },
   style: { ...baseStyle, ...style },
-  blank: false,
-  lock: false,
   display: null,
   projecting: false,
 })

@@ -3,7 +3,8 @@ import { mapKey } from '../src/shared/keymap'
 import { chapterVerses } from '../src/shared/bible'
 import type { AppState, ProjectionStyle } from '../src/shared/types'
 
-// T4-keys：§6.3 键位映射表 + 锁屏拦截（除 L 外全禁）+ 翻节/翻章边界
+// T7-projection（R1）：黑场/锁屏功能不存在——B/L 键无意图、blank/lock 动作不在契约；
+// F/Esc=退出投屏；P=投屏开合；↑↓ 翻节高亮；PgUp/PgDn 翻章边界保留。
 
 const baseStyle: ProjectionStyle = {
   theme: 'ink',
@@ -26,8 +27,6 @@ const baseStyle: ProjectionStyle = {
 const state = (patch: Partial<AppState> = {}): AppState => ({
   selection: { sn: 1, chapter: 1, verses: { from: 3, to: 3 } },
   style: { ...baseStyle },
-  blank: false,
-  lock: false,
   display: null,
   projecting: false,
   ...patch,
@@ -35,7 +34,7 @@ const state = (patch: Partial<AppState> = {}): AppState => ({
 
 const ps119 = chapterVerses(19, 119).length
 
-describe('T4-keys §6.3 键位映射表', () => {
+describe('§6.3 键位映射表', () => {
   it('↑↓ 翻节：创 1:3 → 2 / 4；章首章尾钳制', () => {
     const up = mapKey('ArrowUp', state())
     expect(up).toEqual({
@@ -69,20 +68,12 @@ describe('T4-keys §6.3 键位映射表', () => {
     expect(mapKey('PageDown', lastChapter)).toBeNull() // 诗篇共 150 章
   })
 
-  it('B 黑场开关、L 锁屏开关、±字号、S 抽屉、F 全屏、Esc 语义', () => {
-    expect(mapKey('b', state())).toEqual({ kind: 'action', action: { type: 'blank', value: true } })
-    expect(mapKey('b', state({ blank: true }))).toEqual({ kind: 'action', action: { type: 'blank', value: false } })
-    expect(mapKey('l', state())).toEqual({ kind: 'action', action: { type: 'lock', value: true } })
-    expect(mapKey('l', state({ lock: true }))).toEqual({ kind: 'action', action: { type: 'lock', value: false } })
+  it('±字号、S 抽屉', () => {
     expect(mapKey('+', state())).toEqual({ kind: 'action', action: { type: 'style', patch: { fontSize: 84 } } })
     expect(mapKey('=', state())).toEqual({ kind: 'action', action: { type: 'style', patch: { fontSize: 84 } } })
     expect(mapKey('-', state())).toEqual({ kind: 'action', action: { type: 'style', patch: { fontSize: 60 } } })
     expect(mapKey('s', state())).toEqual({ kind: 'toggle-drawer' })
     expect(mapKey('S', state())).toEqual({ kind: 'toggle-drawer' })
-    expect(mapKey('f', state())).toEqual({ kind: 'toggle-fullscreen' })
-    // Esc：黑场开 → 一键恢复黑场；无黑场 → 退出全屏
-    expect(mapKey('Escape', state({ blank: true }))).toEqual({ kind: 'action', action: { type: 'blank', value: false } })
-    expect(mapKey('Escape', state())).toEqual({ kind: 'exit-fullscreen' })
   })
 
   it('未定义键不产生意图（防误触）', () => {
@@ -92,7 +83,7 @@ describe('T4-keys §6.3 键位映射表', () => {
   })
 })
 
-describe('T6-project 投屏键位（P 键 + Esc 语义不变）', () => {
+describe('T7-projection 投屏键位（R1）', () => {
   it('P 投屏/取消投屏：projecting=false → true；true → false', () => {
     expect(mapKey('p', state())).toEqual({ kind: 'action', action: { type: 'projecting', value: true } })
     expect(mapKey('P', state({ projecting: true }))).toEqual({
@@ -101,43 +92,36 @@ describe('T6-project 投屏键位（P 键 + Esc 语义不变）', () => {
     })
   })
 
-  it('锁屏下 P 被拦截（防误触，与 B/F 同语义）', () => {
-    expect(mapKey('p', state({ lock: true }))).toBeNull()
-    expect(mapKey('P', state({ lock: true }))).toBeNull()
-  })
-
-  it('控制窗 Esc 语义保持既有：黑场优先，否则退出全屏', () => {
-    expect(mapKey('Escape', state({ blank: true }))).toEqual({ kind: 'action', action: { type: 'blank', value: false } })
-    expect(mapKey('Escape', state())).toEqual({ kind: 'exit-fullscreen' })
+  it('F / Esc = 退出投屏（投屏中才产生意图；未投屏无动作）', () => {
+    expect(mapKey('f', state({ projecting: true }))).toEqual({
+      kind: 'action',
+      action: { type: 'projecting', value: false },
+    })
+    expect(mapKey('F', state({ projecting: true }))).toEqual({
+      kind: 'action',
+      action: { type: 'projecting', value: false },
+    })
+    expect(mapKey('Escape', state({ projecting: true }))).toEqual({
+      kind: 'action',
+      action: { type: 'projecting', value: false },
+    })
+    expect(mapKey('f', state())).toBeNull()
+    expect(mapKey('Escape', state())).toBeNull()
   })
 })
 
-describe('T4-keys 锁屏拦截（防误触语义）', () => {
-  const locked = state({ lock: true })
-
-  it('锁屏下除 L 外全部禁用', () => {
-    for (const key of [
-      'ArrowUp',
-      'ArrowDown',
-      'PageUp',
-      'PageDown',
-      'b',
-      'B',
-      'f',
-      'F',
-      's',
-      'S',
-      '+',
-      '-',
-      'Escape',
-    ]) {
-      expect(mapKey(key, locked), `锁屏下键 ${key} 应被拦截`).toBeNull()
+describe('T7-projection 黑场/锁屏功能不存在（R1 删除令）', () => {
+  it('B / L 键无任何意图（黑场/锁屏键位不存在）', () => {
+    for (const key of ['b', 'B', 'l', 'L']) {
+      expect(mapKey(key, state()), `键 ${key} 应为无意图`).toBeNull()
+      expect(mapKey(key, state({ projecting: true })), `投屏中键 ${key} 应为无意图`).toBeNull()
     }
   })
 
-  it('L 在锁屏下仍可解锁', () => {
-    expect(mapKey('l', locked)).toEqual({ kind: 'action', action: { type: 'lock', value: false } })
-    expect(mapKey('L', locked)).toEqual({ kind: 'action', action: { type: 'lock', value: false } })
+  it('AppState 无 blank/lock 字段（状态链路不存在）', () => {
+    const s = state()
+    expect('blank' in s).toBe(false)
+    expect('lock' in s).toBe(false)
   })
 
   it('无选择时翻节翻章为空操作', () => {

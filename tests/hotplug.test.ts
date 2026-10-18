@@ -1,96 +1,77 @@
 import { describe, expect, it } from 'vitest'
-import type { HotplugInput } from '../src/main/hotplug'
-import { createHotplugMachine } from '../src/main/hotplug'
+import { createHotplugRules } from '../src/main/hotplug'
 
-// §3.3 状态机：
-// ASSIGNED ──display-removed──▶ FALLBACK ──display-added──▶ PENDING_RECONNECT ──重指派──▶ ASSIGNED
-//    ▲                              │                                    │
-//    └──────display-added（是原 id 或用户手动改选）──────────────────────────┘
-describe('投影窗显示器热插拔状态机（§3.3 全部迁移路径）', () => {
-  const removed = (id: number): HotplugInput => ({ kind: 'display-removed', id })
-  const added = (id: number): HotplugInput => ({ kind: 'display-added', id })
-  const assign = (id: number): HotplugInput => ({ kind: 'assign', id })
+// T7-projection（R1）：ADR-0004 三态状态机作废——热插拔只剩两条纯函数兜底规则：
+//   display-removed 命中目标 → 降级主屏（fallback-to-primary + banner）
+//   display-added 命中记录的 display.id → 自动回连（move-to-display + banner 清空）
 
-  it('ASSIGNED + 目标 display 移除 → FALLBACK（回退主屏 + 顶栏警示）', () => {
-    const m = createHotplugMachine(101)
-    const effects = m.handle(removed(101))
-    expect(m.status).toBe('FALLBACK')
-    expect(effects).toContainEqual({ type: 'fallback-to-primary' })
-    expect(effects).toContainEqual({ type: 'set-banner', text: '投影回退主屏' })
+const target = (id: number | null) => () => id
+
+describe('T7-projection 热插拔兜底规则（R1）', () => {
+  it('拔掉的是投屏目标 → 降级主屏 + banner 提示', () => {
+    const rules = createHotplugRules(target(101))
+    expect(rules.handle({ kind: 'display-removed', id: 101 })).toEqual([
+      { type: 'fallback-to-primary' },
+      { type: 'set-banner', text: '电视断开，投影已回退本机浮动窗' },
+    ])
   })
 
-  it('ASSIGNED + 非 目标 display 移除 → 保持 ASSIGNED、零副作用', () => {
-    const m = createHotplugMachine(101)
-    expect(m.handle(removed(999))).toEqual([])
-    expect(m.status).toBe('ASSIGNED')
+  it('拔掉的是别的显示器 → 无副作用（投影不受影响）', () => {
+    const rules = createHotplugRules(target(101))
+    expect(rules.handle({ kind: 'display-removed', id: 999 })).toEqual([])
   })
 
-  it('FALLBACK + display-added（原 id）→ 直接恢复 ASSIGNED（HDMI 重插自动重连）', () => {
-    const m = createHotplugMachine(101)
-    m.handle(removed(101))
-    const effects = m.handle(added(101))
-    expect(m.status).toBe('ASSIGNED')
-    expect(effects).toContainEqual({ type: 'move-to-display', id: 101 })
-    expect(effects).toContainEqual({ type: 'set-banner', text: null })
+  it('目标为 null（未记录 display.id）→ 拔线无兜底动作', () => {
+    const rules = createHotplugRules(target(null))
+    expect(rules.handle({ kind: 'display-removed', id: 101 })).toEqual([])
   })
 
-  it('FALLBACK + display-added（新 id，换了电视）→ PENDING_RECONNECT（停在待改选）', () => {
-    const m = createHotplugMachine(101)
-    m.handle(removed(101))
-    m.handle(added(202))
-    expect(m.status).toBe('PENDING_RECONNECT')
+  it('插回同一显示器 id → 自动回连该屏 + banner 清空', () => {
+    const rules = createHotplugRules(target(101))
+    expect(rules.handle({ kind: 'display-added', id: 101 })).toEqual([
+      { type: 'move-to-display', id: 101 },
+      { type: 'set-banner', text: null },
+    ])
   })
 
-  it('PENDING_RECONNECT + 用户一键改选 → ASSIGNED（重指派新目标并迁移）', () => {
-    const m = createHotplugMachine(101)
-    m.handle(removed(101))
-    m.handle(added(202))
-    const effects = m.handle(assign(202))
-    expect(m.status).toBe('ASSIGNED')
-    expect(m.targetId).toBe(202)
-    expect(effects).toContainEqual({ type: 'move-to-display', id: 202 })
-    expect(effects).toContainEqual({ type: 'set-banner', text: null })
+  it('插入的是别的显示器 → 不自动指派（R1：无选择界面、不抢屏）', () => {
+    const rules = createHotplugRules(target(101))
+    expect(rules.handle({ kind: 'display-added', id: 999 })).toEqual([])
   })
 
-  it('PENDING_RECONNECT + 原 display 重新出现 → 自动重连回 ASSIGNED', () => {
-    const m = createHotplugMachine(101)
-    m.handle(removed(101))
-    m.handle(added(202))
-    const effects = m.handle(added(101))
-    expect(m.status).toBe('ASSIGNED')
-    expect(effects).toContainEqual({ type: 'move-to-display', id: 101 })
+  it('目标为 null → 插线不自动上屏', () => {
+    const rules = createHotplugRules(target(null))
+    expect(rules.handle({ kind: 'display-added', id: 101 })).toEqual([])
   })
 
-  it('FALLBACK + 用户手动改选（bottom 回边）→ ASSIGNED', () => {
-    const m = createHotplugMachine(101)
-    m.handle(removed(101))
-    const effects = m.handle(assign(303))
-    expect(m.status).toBe('ASSIGNED')
-    expect(m.targetId).toBe(303)
-    expect(effects).toContainEqual({ type: 'move-to-display', id: 303 })
+  it('目标 id 可随 store 变化（getTargetId 实时读取）', () => {
+    let current: number | null = 101
+    const rules = createHotplugRules(() => current)
+    expect(rules.handle({ kind: 'display-removed', id: 101 })).not.toEqual([])
+    current = 202
+    expect(rules.handle({ kind: 'display-removed', id: 101 })).toEqual([])
+    expect(rules.handle({ kind: 'display-removed', id: 202 })).not.toEqual([])
   })
 
-  it('ASSIGNED + 用户切换显示器（顶栏下拉）→ 更新目标并迁移', () => {
-    const m = createHotplugMachine(101)
-    const effects = m.handle(assign(202))
-    expect(m.status).toBe('ASSIGNED')
-    expect(m.targetId).toBe(202)
-    expect(effects).toContainEqual({ type: 'move-to-display', id: 202 })
+  it('降级后 display.id 记录保留（作为插回时自动回连的参考，R1）', () => {
+    const rules = createHotplugRules(target(101))
+    rules.handle({ kind: 'display-removed', id: 101 })
+    // rules 无内部状态：display.id 由外部 store 持有，回连判定继续以 101 为准
+    expect(rules.handle({ kind: 'display-added', id: 101 })).toEqual([
+      { type: 'move-to-display', id: 101 },
+      { type: 'set-banner', text: null },
+    ])
   })
 
-  it('FALLBACK + 再移除非目标 display → 保持 FALLBACK', () => {
-    const m = createHotplugMachine(101)
-    m.handle(removed(101))
-    expect(m.handle(removed(999))).toEqual([])
-    expect(m.status).toBe('FALLBACK')
+  it('三态状态机不存在：HotplugStatus/PENDING_RECONNECT 等机器语义已删除', async () => {
+    const mod = await import('../src/main/hotplug')
+    expect('createHotplugMachine' in mod).toBe(false)
+    expect('HotplugMachine' in mod).toBe(false)
   })
 
-  it('状态可订阅：迁移发生时通知监听者（控制窗顶栏状态条）', () => {
-    const m = createHotplugMachine(101)
-    const seen: string[] = []
-    m.subscribe((s) => seen.push(s))
-    m.handle(removed(101))
-    m.handle(added(101))
-    expect(seen).toEqual(['FALLBACK', 'ASSIGNED'])
+  it('不存在 assign 输入（手动指派作废，R1）', () => {
+    const rules = createHotplugRules(target(101))
+    // @ts-expect-error assign 已从 HotplugInput 类型删除
+    expect(rules.handle({ kind: 'assign', id: 101 })).toEqual([])
   })
 })

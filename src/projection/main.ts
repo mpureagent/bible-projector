@@ -14,12 +14,18 @@ document.addEventListener('keydown', (event) => {
   }
 })
 
+// T7-projection（R1）：单屏本机浮动窗的顶栏提示（主进程 banner 推送，多屏全屏不提示）
+window.bridge.onBanner(({ text }) => {
+  const hint = document.getElementById('hint')
+  if (hint) hint.style.display = text ? 'block' : 'none'
+})
+
 function render(state: AppState): void {
   const root = document.getElementById('stage')
   if (root) renderProjection(root, state, { width: window.innerWidth, height: window.innerHeight })
   const meta = document.getElementById('meta')
   if (meta) {
-    meta.textContent = `主题 ${state.style.theme} · 字号 ${state.style.fontSize} · 黑场 ${state.blank ? '开' : '关'} · 锁定 ${state.lock ? '开' : '关'} · 显示器 ${state.display ?? '主屏'}`
+    meta.textContent = `主题 ${state.style.theme} · 字号 ${state.style.fontSize}`
   }
 }
 

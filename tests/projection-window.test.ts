@@ -13,6 +13,8 @@ interface MockWin {
   options: Record<string, unknown>
   fullScreen: boolean
   visible: boolean
+  showCalls: number
+  showInactiveCalls: number
   destroyed: boolean
   bounds: MockBounds
   loadFile(): Promise<void>
@@ -21,10 +23,12 @@ interface MockWin {
   setBounds(b: Partial<MockBounds>): void
   center(): void
   show(): void
+  showInactive(): void
   hide(): void
   setFullScreen(value: boolean): void
   isFullScreen(): boolean
   isDestroyed(): boolean
+  destroy(): void
 }
 
 const hoisted = vi.hoisted(() => {
@@ -37,6 +41,8 @@ vi.mock('electron', () => {
     options: Record<string, unknown>
     fullScreen: boolean
     visible = false
+    showCalls = 0
+    showInactiveCalls = 0
     destroyed = false
     bounds: MockBounds
     private readonly onceHandlers = new Map<string, Array<() => void>>()
@@ -66,6 +72,11 @@ vi.mock('electron', () => {
     }
     show(): void {
       this.visible = true
+      this.showCalls += 1
+    }
+    showInactive(): void {
+      this.visible = true
+      this.showInactiveCalls += 1
     }
     hide(): void {
       this.visible = false
@@ -79,6 +90,10 @@ vi.mock('electron', () => {
     isDestroyed(): boolean {
       return this.destroyed
     }
+    destroy(): void {
+      this.destroyed = true
+      this.visible = false
+    }
   }
   return {
     BrowserWindow: MockBrowserWindow,
@@ -88,8 +103,8 @@ vi.mock('electron', () => {
 
 import {
   createProjectionWindow,
+  destroyProjectionWindow,
   gateProjectionMessage,
-  hideProjectionWindow,
   isSingleDisplay,
   moveProjectionTo,
   showProjectionWindow,
@@ -164,6 +179,28 @@ describe('T6-project 投屏可见性驱动（show/hide）', () => {
     expect(w.bounds.height).toBe(720)
   })
 
+  it('T7 R1：show 走 showInactive 不抢焦点（主屏自由）', () => {
+    const w = create()
+    showProjectionWindow(w as never, display(1, 0))
+    expect(w.showInactiveCalls).toBe(1)
+    expect(w.showCalls).toBe(0)
+    setDisplays([display(1, 0), display(2, 1920)])
+    const dual = create(display(2, 1920))
+    showProjectionWindow(dual as never, display(2, 1920))
+    expect(dual.showInactiveCalls).toBe(1)
+    expect(dual.showCalls).toBe(0)
+  })
+
+  it('T7 R1：destroyProjectionWindow 取消投屏 = 销毁；已销毁窗口不重复 destroy', () => {
+    const w = create()
+    expect(w.isDestroyed()).toBe(false)
+    destroyProjectionWindow(w as never)
+    expect(w.isDestroyed()).toBe(true)
+    expect(w.visible).toBe(false)
+    // 幂等：对已销毁窗口再调不抛错
+    expect(() => destroyProjectionWindow(w as never)).not.toThrow()
+  })
+
   it('双屏 show：bounds 对齐目标显示器并全屏', () => {
     setDisplays([display(1, 0), display(2, 1920)])
     const w = create()
@@ -173,10 +210,9 @@ describe('T6-project 投屏可见性驱动（show/hide）', () => {
     expect(w.visible).toBe(true)
   })
 
-  it('hide：投影窗不可见', () => {
-    const w = create()
-    hideProjectionWindow(w as never)
-    expect(w.visible).toBe(false)
+  it('T7 R1：hideProjectionWindow 已退役（取消投屏=销毁，不再隐藏复用）', async () => {
+    const windows = await import('../src/main/windows')
+    expect('hideProjectionWindow' in windows).toBe(false)
   })
 
   it('moveProjectionTo 单屏不进全屏（热插拔回落主屏也不吞屏）；双屏照旧全屏', () => {

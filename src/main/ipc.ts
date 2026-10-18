@@ -1,4 +1,4 @@
-import type { Action, AppState, DisplayInfo, HistoryEntry } from '../shared/types'
+import type { Action, AppState, HistoryEntry } from '../shared/types'
 import { IPC_CHANNELS, isAction } from '../shared/types'
 
 export interface IpcMainLike {
@@ -15,8 +15,6 @@ export interface IpcDeps {
   ipcMain: IpcMainLike
   store: StoreLike
   broadcast: (channel: string, payload: AppState) => void
-  getDisplays(): DisplayInfo[]
-  setProjectionFullscreen(value?: boolean): void
 }
 
 export function registerIpc(deps: IpcDeps): void {
@@ -31,11 +29,6 @@ export function registerIpc(deps: IpcDeps): void {
 
   deps.ipcMain.handle(IPC_CHANNELS.getState, () => deps.store.getState())
   deps.ipcMain.handle(IPC_CHANNELS.getHistory, () => deps.store.getHistory())
-  deps.ipcMain.handle(IPC_CHANNELS.getDisplays, () => deps.getDisplays())
-  deps.ipcMain.handle(IPC_CHANNELS.projectionFullscreen, (_event, payload) => {
-    const value = (payload as { value?: boolean } | undefined)?.value
-    deps.setProjectionFullscreen(value)
-  })
 }
 
 export { IPC_CHANNELS }

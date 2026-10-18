@@ -34,13 +34,8 @@ export function renderProjection(root: HTMLElement, state: AppState, viewport: V
     root.style.backgroundSize = 'cover'
     root.style.backgroundPosition = 'center'
   }
-  root.classList.toggle('blanked', state.blank)
 
-  const overlay = document.createElement('div')
-  overlay.className = 'blank-overlay'
-  overlay.style.display = state.blank ? 'block' : 'none'
-
-  root.replaceChildren(overlay)
+  root.replaceChildren()
 
   if (!state.selection) {
     const placeholder = document.createElement('div')

@@ -63,8 +63,6 @@ export class AppStateStore {
     this.state = {
       selection: null,
       style: { ...DEFAULT_STYLE, ...config.style },
-      blank: false,
-      lock: false,
       display: config.display ?? null,
       projecting: false,
     }
@@ -121,10 +119,6 @@ function reduce(state: AppState, action: Action): AppState {
       return { ...state, selection: action.selection }
     case 'style':
       return { ...state, style: { ...state.style, ...sanitizePatch(action.patch) } }
-    case 'blank':
-      return { ...state, blank: action.value }
-    case 'lock':
-      return { ...state, lock: action.value }
     case 'display':
       return { ...state, display: action.id }
     case 'projecting':

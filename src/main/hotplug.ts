@@ -1,87 +1,46 @@
-// §3.3 投影窗显示器热插拔三态状态机（纯函数，副作用以 Effect 数据返回）：
-//
-// ASSIGNED ──display-removed──▶ FALLBACK ──display-added──▶ PENDING_RECONNECT ──重指派──▶ ASSIGNED
-//    ▲                              │                                    │
-//    └──────display-added（是原 id 或用户手动改选）──────────────────────────────┘
-
-export type HotplugStatus = 'ASSIGNED' | 'FALLBACK' | 'PENDING_RECONNECT'
+// T7-projection（R1 定稿）：ADR-0004 三态状态机与手动指派作废。
+// 热插拔只剩两条兜底规则（纯函数，副作用以 Effect 数据返回）：
+//   1. display-removed：拔掉的正是当前投屏目标 → 降级主屏（单屏即本机浮动窗）
+//   2. display-added：插回的显示器 id 与记录的 display 一致 → 自动回连该屏
+// display.id 仅作断开兜底参考（R1），无任何用户选择界面。
 
 export type HotplugInput =
   | { kind: 'display-removed'; id: number }
   | { kind: 'display-added'; id: number }
-  | { kind: 'assign'; id: number }
 
 export type HotplugEffect =
   | { type: 'fallback-to-primary' }
   | { type: 'move-to-display'; id: number }
   | { type: 'set-banner'; text: string | null }
 
-export interface HotplugMachine {
-  readonly status: HotplugStatus
-  readonly targetId: number | null
+export interface HotplugRules {
   handle(input: HotplugInput): HotplugEffect[]
-  subscribe(listener: (status: HotplugStatus) => void): () => void
 }
 
-export function createHotplugMachine(
-  initialTarget: number | null,
-  initialStatus: HotplugStatus = 'ASSIGNED',
-): HotplugMachine {
-  let status: HotplugStatus = initialTarget === null ? 'FALLBACK' : initialStatus
-  let targetId = initialTarget
-  const listeners = new Set<(status: HotplugStatus) => void>()
-
+export function createHotplugRules(getTargetId: () => number | null): HotplugRules {
   return {
-    get status() {
-      return status
-    },
-    get targetId() {
-      return targetId
-    },
     handle(input) {
-      const effects: HotplugEffect[] = []
-      const before = status
-
+      const targetId = getTargetId()
       switch (input.kind) {
         case 'display-removed':
-          if (status === 'ASSIGNED' && input.id === targetId) {
-            status = 'FALLBACK'
-            effects.push({ type: 'fallback-to-primary' })
-            effects.push({ type: 'set-banner', text: '投影回退主屏' })
+          if (targetId !== null && input.id === targetId) {
+            return [
+              { type: 'fallback-to-primary' },
+              { type: 'set-banner', text: '电视断开，投影已回退本机浮动窗' },
+            ]
           }
-          break
+          return []
         case 'display-added':
-          if (status === 'FALLBACK') {
-            if (input.id === targetId) {
-              toAssigned(input.id, effects)
-            } else {
-              status = 'PENDING_RECONNECT'
-              effects.push({ type: 'set-banner', text: '检测到新显示器，请在顶栏选择' })
-            }
-          } else if (status === 'PENDING_RECONNECT' && input.id === targetId) {
-            toAssigned(input.id, effects)
+          if (targetId !== null && input.id === targetId) {
+            return [
+              { type: 'move-to-display', id: input.id },
+              { type: 'set-banner', text: null },
+            ]
           }
-          break
-        case 'assign':
-          toAssigned(input.id, effects)
-          break
+          return []
+        default:
+          return []
       }
-
-      if (status !== before) {
-        for (const listener of listeners) listener(status)
-      }
-      return effects
-
-      function toAssigned(id: number, out: HotplugEffect[]): void {
-        status = 'ASSIGNED'
-        targetId = id
-        out.push({ type: 'move-to-display', id })
-        out.push({ type: 'set-banner', text: null })
-      }
-    },
-    subscribe(listener) {
-      listeners.add(listener)
-      return () => listeners.delete(listener)
     },
   }
 }

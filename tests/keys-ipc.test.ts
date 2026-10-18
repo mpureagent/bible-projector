@@ -1,13 +1,13 @@
 import { performance } from 'node:perf_hooks'
 import { describe, expect, it } from 'vitest'
-import { createHotplugMachine } from '../src/main/hotplug'
+import { createHotplugRules } from '../src/main/hotplug'
 import { AppStateStore } from '../src/main/store'
 import { IPC_CHANNELS, registerIpc } from '../src/main/ipc'
 import type { IpcMainLike } from '../src/main/ipc'
 import type { Persistence } from '../src/main/store'
-import type { DisplayInfo } from '../src/shared/types'
 
-// T4-keys：新 IPC 通道（get-displays / projection-fullscreen）+ 状态机一键改选 ≤100ms 实测
+// T7-projection（R1）：getDisplays（显示器下拉）与 projectionFullscreen（全屏手动切换）
+// 通道整体删除；display 持久化保留（断开兜底参考）；热插拔规则键改选 ≤100ms 实测
 
 const noopPersistence: Persistence = {
   loadConfig: () => ({}),
@@ -31,36 +31,23 @@ function fakeIpcMain(): IpcMainLike & { handlers: CapturedHandler[] } {
   }
 }
 
-describe('T4-keys IPC 新通道', () => {
-  it('get-displays 返回显示器清单（id/label/primary）', () => {
+describe('T7-projection IPC 通道裁撤（R1）', () => {
+  it('getDisplays / projectionFullscreen 通道不再注册（显示器下拉与手动全屏不存在）', () => {
     const store = new AppStateStore(noopPersistence)
     const ipcMain = fakeIpcMain()
-    const displays: DisplayInfo[] = [{ id: 7, label: '1280×720', primary: true }]
-    registerIpc({ ipcMain, store, broadcast: () => {}, getDisplays: () => displays, setProjectionFullscreen: () => {} })
-    const handler = ipcMain.handlers.find((h) => h.channel === IPC_CHANNELS.getDisplays)
-    expect(handler).toBeTruthy()
-    expect(handler!.invoke(undefined)).toEqual(displays)
+    registerIpc({ ipcMain, store, broadcast: () => {} })
+    const channels = ipcMain.handlers.map((h) => h.channel)
+    expect(channels.sort()).toEqual([
+      IPC_CHANNELS.action,
+      IPC_CHANNELS.getHistory,
+      IPC_CHANNELS.getState,
+    ])
   })
 
-  it('projection-fullscreen 透传 fullscreen 目标值（undefined=切换）', () => {
-    const store = new AppStateStore(noopPersistence)
-    const ipcMain = fakeIpcMain()
-    const calls: Array<boolean | undefined> = []
-    registerIpc({
-      ipcMain,
-      store,
-      broadcast: () => {},
-      getDisplays: () => [],
-      setProjectionFullscreen: (value) => {
-        calls.push(value)
-      },
-    })
-    const handler = ipcMain.handlers.find((h) => h.channel === IPC_CHANNELS.projectionFullscreen)
-    expect(handler).toBeTruthy()
-    void handler!.invoke(undefined)
-    void handler!.invoke({ value: true })
-    void handler!.invoke({ value: false })
-    expect(calls).toEqual([undefined, true, false])
+  it('IPC_CHANNELS 契约常量不含 getDisplays / projectionFullscreen 键', () => {
+    expect('getDisplays' in IPC_CHANNELS).toBe(false)
+    expect('projectionFullscreen' in IPC_CHANNELS).toBe(false)
+    expect(Object.keys(IPC_CHANNELS).sort()).toEqual(['action', 'banner', 'getHistory', 'getState', 'state'])
   })
 
   it('display 指派持久化：dispatch display → config.json 落 id', () => {
@@ -80,25 +67,27 @@ describe('T4-keys IPC 新通道', () => {
   })
 })
 
-describe('T4-keys 状态机一键改选 ≤100ms（×100 取中位数）', () => {
-  it('assign 迁移 + store dispatch 全链中位数 ≤100ms，实测数字进日志', () => {
+describe('T7-projection 热插拔规则响应 ≤100ms（×100 取中位数）', () => {
+  it('display-removed/added 判定 + store dispatch 全链中位数 ≤100ms，实测数字进日志', () => {
     const store = new AppStateStore(noopPersistence)
-    const machine = createHotplugMachine(101, 'FALLBACK')
+    const rules = createHotplugRules(() => store.getState().display)
+    store.dispatch({ type: 'display', id: 101 })
     const samples: number[] = []
     for (let i = 0; i < 100; i++) {
       const t0 = performance.now()
-      const effects = machine.handle({ kind: 'assign', id: 101 })
+      const removed = rules.handle({ kind: 'display-removed', id: 101 })
+      const added = rules.handle({ kind: 'display-added', id: 101 })
       store.dispatch({ type: 'display', id: 101 })
       samples.push(performance.now() - t0)
-      expect(effects.map((e) => e.type)).toContain('move-to-display')
+      expect(removed.map((e) => e.type)).toContain('fallback-to-primary')
+      expect(added.map((e) => e.type)).toContain('move-to-display')
     }
     samples.sort((a, b) => a - b)
     const median = samples[49]!
     console.log(
-      `[T4-keys] display-assign median=${median.toFixed(4)}ms p95=${samples[94]!.toFixed(4)}ms (n=100, machine.handle + store.dispatch)`,
+      `[T7-projection] hotplug-rules median=${median.toFixed(4)}ms p95=${samples[94]!.toFixed(4)}ms (n=100, rules.handle ×2 + store.dispatch)`,
     )
     expect(median).toBeLessThanOrEqual(100)
-    expect(machine.status).toBe('ASSIGNED')
     expect(store.getState().display).toBe(101)
   })
 })

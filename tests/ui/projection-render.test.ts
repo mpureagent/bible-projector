@@ -26,8 +26,6 @@ const stateWith = (patch: Partial<AppState>): AppState => ({
     align: 'center',
     margin: 8,
   },
-  blank: false,
-  lock: false,
   display: null,
   projecting: false,
   ...patch,
@@ -89,10 +87,10 @@ describe('T3-cascade 投影窗经文渲染', () => {
     expect(root.querySelector('.passage-title')?.textContent).toContain('第 1 章')
   })
 
-  it('黑场开 → 遮罩显示；selection=null → 占位文案', () => {
+  it('T7 R1：黑场遮罩不存在（blank 链路已删）；selection=null → 占位文案', () => {
     const root = mount()
-    renderProjection(root, stateWith({ blank: true, selection: gen11 }))
-    expect(root.querySelector<HTMLElement>('.blank-overlay')?.style.display).toBe('block')
+    renderProjection(root, stateWith({ selection: gen11 }))
+    expect(root.querySelector('.blank-overlay')).toBeNull()
     const root2 = mount()
     renderProjection(root2, stateWith({ selection: null }))
     expect(root2.querySelector('.placeholder')?.textContent).toBeTruthy()
