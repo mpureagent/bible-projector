@@ -21,6 +21,9 @@ import {
 // 主屏永不劫持：工作窗可最小化，投影窗独立存活，show 不抢焦点。
 
 const SMOKE_CAPTURE = process.env.SMOKE_CAPTURE === '1'
+// T7-release E2E：SMOKE_NO_PROJECT=1 → 不强制投屏（取证「投屏前单屏无劫持」）；
+// SMOKE_CASCADE=1 → 打开四列级联弹窗取证
+const SMOKE_NO_PROJECT = process.env.SMOKE_NO_PROJECT === '1'
 
 // T7-package（R7b）：userData 钉到 %APPDATA%\圣言投屏；须在任何 userData 访问前设置。
 // 迁移须在 Chromium 初始化 profile 目录之前执行（否则新目录已非空 → 迁移跳过的窗口期），
@@ -56,8 +59,8 @@ if (!app.requestSingleInstanceLock()) {
 
 async function start(): Promise<void> {
   const store = new AppStateStore(fsPersistence(app.getPath('userData')))
-  // 烟测路径视为始终投屏中：保持 E2E 点选→投影窗上屏的取证链路不变
-  if (SMOKE_CAPTURE) store.dispatch({ type: 'projecting', value: true })
+  // 烟测路径视为始终投屏中：保持 E2E 点选→投影窗上屏的取证链路不变（SMOKE_NO_PROJECT 除外）
+  if (SMOKE_CAPTURE && !SMOKE_NO_PROJECT) store.dispatch({ type: 'projecting', value: true })
   control = createControlWindow()
 
   const broadcast = (channel: string, payload: unknown): void => {
@@ -98,11 +101,12 @@ async function start(): Promise<void> {
     if (state.projecting) {
       if (projection && !projection.isDestroyed()) {
         const target = displayById(state.display) ?? screen.getPrimaryDisplay()
-        showProjectionWindow(projection, target)
+        showProjectionWindow(projection, target, SMOKE_CAPTURE)
         return
       }
       const target = displayById(state.display) ?? screen.getPrimaryDisplay()
-      const win = createProjectionWindow(target, false)
+      // 烟测取证路径以 smoke=true 建窗（尺寸可控 SMOKE_PROJ_RES，便于 1080p 效果图集）
+      const win = createProjectionWindow(target, SMOKE_CAPTURE)
       projection = win
       win.on('closed', () => {
         if (projection === win) projection = null
@@ -118,8 +122,8 @@ async function start(): Promise<void> {
           destroyProjectionWindow(win)
         }
       })
-      // 单屏本机浮动窗：顶栏一行提示（电视请用 Win+P 扩展模式）
-      if (isSingleDisplay()) {
+      // 单屏本机浮动窗：顶栏一行提示（电视请用 Win+P 扩展模式）；效果图集取证可经 SMOKE_NO_HINT 抑制
+      if (isSingleDisplay() && process.env.SMOKE_NO_HINT !== '1') {
         void win.webContents.once('did-finish-load', () => {
           if (!win.isDestroyed()) {
             win.webContents.send(IPC_CHANNELS.banner, { text: '电视请用 Win+P 扩展模式' })
@@ -132,7 +136,7 @@ async function start(): Promise<void> {
           win.webContents.send(IPC_CHANNELS.state, current)
         }
       })
-      showProjectionWindow(win, target)
+      showProjectionWindow(win, target, SMOKE_CAPTURE)
     } else {
       if (projection && !projection.isDestroyed()) {
         destroyProjectionWindow(projection)
@@ -149,12 +153,10 @@ async function start(): Promise<void> {
     }
   })
 
-  // 烟测路径需要投影窗在场：直接进入投屏生命周期
+  // 烟测路径需要投影窗在场：直接进入投屏生命周期（SMOKE_NO_PROJECT 则不创建投影窗）
   if (SMOKE_CAPTURE) {
-    applyProjecting(store.getState())
-    if (projection) {
-      await captureSmokeEvidence(control, projection)
-    }
+    if (!SMOKE_NO_PROJECT) applyProjecting(store.getState())
+    await captureSmokeEvidence(control, projection)
   }
 }
 
@@ -172,7 +174,7 @@ async function logStage(projection: BrowserWindow): Promise<void> {
 
 async function captureSmokeEvidence(
   control: BrowserWindow,
-  projection: BrowserWindow,
+  projection: BrowserWindow | null,
 ): Promise<void> {
   const { mkdirSync, writeFileSync } = await import('node:fs')
   const { join } = await import('node:path')
@@ -209,7 +211,7 @@ async function captureSmokeEvidence(
         return Boolean(to)
       })()`,
     )
-    await logStage(projection)
+    if (projection) await logStage(projection)
     const ctrlState: AppState = await control.webContents.executeJavaScript('window.bridge.getState()')
     const ctrlLabel: string = await control.webContents.executeJavaScript(
       `document.getElementById('btn-selection')?.textContent ?? ''`,
@@ -228,7 +230,13 @@ async function captureSmokeEvidence(
       `window.bridge.dispatch({ type: 'style', patch: ${JSON.stringify(patch)} }).then(() => true)`,
     )
     await new Promise((resolve) => setTimeout(resolve, 400))
-    await logStage(projection)
+    if (projection) await logStage(projection)
+  }
+  // T7-release E2E：SMOKE_CASCADE=1 → 打开四列级联弹窗取证
+  if (process.env.SMOKE_CASCADE === '1') {
+    await control.webContents.executeJavaScript(
+      `(async () => { const w=(ms)=>new Promise(r=>setTimeout(r,ms)); document.querySelector('.book-btn')?.click(); await w(400); return true })()`,
+    )
   }
   // T7-style E2E：打开样式抽屉（⚙）供截图取证
   if (process.env.SMOKE_DRAWER === '1') {
@@ -251,10 +259,12 @@ async function captureSmokeEvidence(
     console.log(`[smoke] history-list=${JSON.stringify(historyText)}`)
   }
   // T4-font E2E：投影窗 @font-face 注入后子集宋体真实可用（document.fonts.check 实测）
-  const fontLoaded: boolean = await projection.webContents.executeJavaScript(
-    `document.fonts.ready.then(() => document.fonts.check('16px "Bible Serif SC"'))`,
-  )
-  console.log(`[smoke] subset-font-loaded=${fontLoaded}`)
+  if (projection) {
+    const fontLoaded: boolean = await projection.webContents.executeJavaScript(
+      `document.fonts.ready.then(() => document.fonts.check('16px "Bible Serif SC"'))`,
+    )
+    console.log(`[smoke] subset-font-loaded=${fontLoaded}`)
+  }
   // T7 E2E：控制窗真实派发 keydown（P/+ /↓）——投屏开合与字号/翻节，终态断据
   if (process.env.SMOKE_KEYS === '1') {
     const before: AppState = await control.webContents.executeJavaScript('window.bridge.getState()')
@@ -274,12 +284,11 @@ async function captureSmokeEvidence(
     console.log(`[smoke] keys-after=${JSON.stringify({ projecting: after.projecting, fontSize: after.style.fontSize, sel: after.selection })}`)
   }
   console.log(
-    `[smoke] control=${control.webContents.getURL()} projection=${projection.webContents.getURL()}`,
+    `[smoke] control=${control.webContents.getURL()} projection=${projection?.webContents.getURL() ?? '（未投屏）'}`,
   )
-  for (const [name, win] of [
-    ['xvfb-control', control],
-    ['xvfb-projection', projection],
-  ] as const) {
+  const shots: Array<[string, BrowserWindow]> = [['xvfb-control', control]]
+  if (projection) shots.push(['xvfb-projection', projection])
+  for (const [name, win] of shots) {
     const image = await win.webContents.capturePage()
     writeFileSync(join(outDir, `${name}.png`), image.toPNG())
   }

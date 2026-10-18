@@ -26,13 +26,20 @@ export function createControlWindow(): BrowserWindow {
   return win
 }
 
+// T7-release：烟测投影窗尺寸可由 SMOKE_PROJ_RES=1920x1080 覆盖（主题效果图集需 1080p 实测渲染）
+function smokeResolution(): { width: number; height: number } {
+  const match = /^(\d+)x(\d+)$/.exec(process.env.SMOKE_PROJ_RES ?? '')
+  return match ? { width: Number(match[1]), height: Number(match[2]) } : { width: 1280, height: 720 }
+}
+
 export function createProjectionWindow(target: Display, smoke = false): BrowserWindow {
   // 单屏保护——系统唯一 display 时投影窗为普通窗口（1280×720、带边框标题「投影预览」、
   // 可关闭），禁止 fullscreen 吞屏；多屏全屏到目标显示器
   const single = !smoke && isSingleDisplay()
+  const smokeRes = smokeResolution()
   const win = new BrowserWindow({
-    width: smoke ? 1000 : single ? 1280 : target.bounds.width,
-    height: smoke ? 520 : single ? 720 : target.bounds.height,
+    width: smoke ? smokeRes.width : single ? 1280 : target.bounds.width,
+    height: smoke ? smokeRes.height : single ? 720 : target.bounds.height,
     title: single ? '投影预览' : '圣言投屏 · 投影窗',
     backgroundColor: '#101418',
     fullscreen: !smoke && !single,
@@ -45,7 +52,7 @@ export function createProjectionWindow(target: Display, smoke = false): BrowserW
     },
   })
   if (smoke) {
-    win.setBounds({ x: 400, y: 150, width: 1000, height: 520 })
+    win.setBounds({ x: 0, y: 0, width: smokeRes.width, height: smokeRes.height })
   } else if (single) {
     win.center()
   } else {
@@ -67,8 +74,13 @@ export function gateProjectionMessage(channel: string, payload: unknown): boolea
   return Boolean((payload as { projecting?: boolean } | undefined)?.projecting)
 }
 
-export function showProjectionWindow(win: BrowserWindow, target: Display): void {
+export function showProjectionWindow(win: BrowserWindow, target: Display, smoke = false): void {
   if (win.isDestroyed()) return
+  if (smoke) {
+    // 烟测路径：保留 createProjectionWindow 设定的尺寸（SMOKE_PROJ_RES），不强制单屏尺寸
+    win.showInactive()
+    return
+  }
   if (isSingleDisplay()) {
     if (win.isFullScreen()) win.setFullScreen(false)
     win.setBounds({ width: 1280, height: 720 })

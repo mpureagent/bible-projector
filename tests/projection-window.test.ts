@@ -153,12 +153,13 @@ describe('T6-project 单屏保护（P0）：唯一 display 禁止 fullscreen', (
     expect(w.fullScreen).toBe(true)
   })
 
-  it('smoke 烟测路径保持既有形态：1000×520 定位展示、不进全屏', async () => {
+  it('smoke 烟测路径：尺寸可控（SMOKE_PROJ_RES，缺省 1280×720）、定位展示、不进全屏', async () => {
     const w = create(display(1, 0), true)
     await w.loadFile()
     expect(w.options.fullscreen).toBe(false)
-    expect(w.bounds.x).toBe(400)
-    expect(w.bounds.width).toBe(1000)
+    expect(w.bounds.x).toBe(0)
+    expect(w.bounds.width).toBe(1280)
+    expect(w.bounds.height).toBe(720)
     expect(w.fullScreen).toBe(false)
     expect(w.visible).toBe(true)
   })

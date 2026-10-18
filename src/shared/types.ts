@@ -1,6 +1,6 @@
 // 共享类型与 IPC 通道契约（§3.2 / §5.3 关联）。
 // AppState = { selection, style, display }——main 为状态唯一持有者。
-// T7-projection（R1）：黑场 blank 与锁屏 lock 全链路移除；projecting 为会话态。
+// T7-projection（R1）：全屏遮挡/锁定类会话态整体移除；projecting 为唯一会话态。
 
 import type { Align, BackgroundMode, FontChoice } from './style'
 
