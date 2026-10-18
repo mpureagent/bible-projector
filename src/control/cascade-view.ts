@@ -43,7 +43,7 @@ export class CascadeView {
     const closeBtn = document.createElement('button')
     closeBtn.type = 'button'
     closeBtn.className = 'cascade-close'
-    closeBtn.textContent = '✕'
+    closeBtn.textContent = '×'
     closeBtn.addEventListener('click', () => this.close())
     head.append(title, closeBtn)
 

@@ -16,21 +16,23 @@ export function themeFor(style: ProjectionStyle): ProjectionTheme {
   return PROJECTION_THEMES[style.theme] ?? PROJECTION_THEMES.ink!
 }
 
-// 舞台底色/字色/背景图（主题 token 或用户覆盖）；纹理走随包相对路径，本地图片走 file://
+// 舞台底色/字色/背景图（R8c 三选一：theme 随 token / texture / image / color）；
+// 纹理走随包相对路径，本地图片走 file://
 export function applyStageStyle(root: HTMLElement, style: ProjectionStyle): void {
   const theme = themeFor(style)
-  root.style.backgroundColor = style.background ?? theme.background
+  root.style.backgroundColor = style.backgroundMode === 'color' && style.background ? style.background : theme.background
   root.style.color = style.color ?? theme.color
   root.style.backgroundImage = ''
   root.style.backgroundSize = ''
   root.style.backgroundPosition = ''
-  if (style.backgroundImage) {
-    const tex = TEXTURES.find((t) => `${BUILTIN_PREFIX}${t.id}` === style.backgroundImage)
+  const value = style.backgroundMode === 'texture' || style.backgroundMode === 'image' ? style.backgroundImage : null
+  if (value) {
+    const tex = TEXTURES.find((t) => `${BUILTIN_PREFIX}${t.id}` === value)
     if (tex) {
       root.style.backgroundImage = `url("../textures/${tex.file}")`
-    } else if (style.backgroundImage.startsWith('/')) {
+    } else if (value.startsWith('/')) {
       // 校验后的本地绝对路径（网络 URL 已在 store 层清洗）
-      root.style.backgroundImage = `url("file://${style.backgroundImage}")`
+      root.style.backgroundImage = `url("file://${value}")`
     }
     root.style.backgroundSize = 'cover'
     root.style.backgroundPosition = 'center'

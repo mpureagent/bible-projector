@@ -2,9 +2,18 @@
 // AppState = { selection, style, display }——main 为状态唯一持有者。
 // T7-projection（R1）：黑场 blank 与锁屏 lock 全链路移除；projecting 为会话态。
 
-import type { Align, FontChoice } from './style'
+import type { Align, BackgroundMode, FontChoice } from './style'
 
-export type ThemeName = 'ink' | 'ivory' | 'ocean'
+// R5：8 套预设主题
+export type ThemeName =
+  | 'ink'
+  | 'ivory'
+  | 'ocean'
+  | 'parchment'
+  | 'forest'
+  | 'charcoal'
+  | 'contrast'
+  | 'wine'
 
 // §2.3 样式全项：色值/背景图 null = 跟随当前主题 token；backgroundImage 为
 // 'builtin:<纹理id>'（随包）或本地绝对路径（网络 URL 在 store 层被清洗）
@@ -20,6 +29,8 @@ export interface ProjectionStyle {
   currentColor: string | null
   background: string | null
   backgroundImage: string | null
+  // R8c：背景三选一（theme 随主题 token / texture 内置纹理 / image 本地图片 / color 纯色），互斥
+  backgroundMode: BackgroundMode
   lineHeight: number
   letterSpacing: number
   align: Align

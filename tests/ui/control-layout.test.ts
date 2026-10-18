@@ -25,6 +25,7 @@ const baseStyle: ProjectionStyle = {
   currentColor: null,
   background: null,
   backgroundImage: null,
+  backgroundMode: 'theme',
   lineHeight: 1.7,
   letterSpacing: 0,
   align: 'center',
@@ -156,7 +157,7 @@ describe('T7-layout 主题色板选择器（R3/R5）', () => {
     const swatches = [...root.querySelectorAll<HTMLElement>('.theme-swatch')]
     expect(swatches).toHaveLength(Object.keys(PROJECTION_THEMES).length)
     for (const sw of swatches) {
-      const theme = PROJECTION_THEMES[sw.dataset.theme!]!
+      const theme = PROJECTION_THEMES[sw.dataset.theme as ThemeName]!
       expect(sw.style.backgroundColor).toBe(theme.background)
       expect(sw.style.color).toBe(theme.color)
     }

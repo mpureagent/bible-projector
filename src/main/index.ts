@@ -222,6 +222,12 @@ async function captureSmokeEvidence(
     await new Promise((resolve) => setTimeout(resolve, 400))
     await logStage(projection)
   }
+  // T7-style E2E：打开样式抽屉（⚙）供截图取证
+  if (process.env.SMOKE_DRAWER === '1') {
+    await control.webContents.executeJavaScript(
+      `(async () => { const w=(ms)=>new Promise(r=>setTimeout(r,ms)); document.getElementById('btn-style')?.click(); await w(300); return true })()`,
+    )
+  }
   // T3-history E2E：切历史 Tab → 渲染列表 → 点击首条回跳上屏
   if (process.env.SMOKE_HISTORY === '1') {
     const historyText: string = await control.webContents.executeJavaScript(

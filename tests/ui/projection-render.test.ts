@@ -21,6 +21,7 @@ const stateWith = (patch: Partial<AppState>): AppState => ({
     currentColor: null,
     background: null,
     backgroundImage: null,
+  backgroundMode: 'theme',
     lineHeight: 1.7,
     letterSpacing: 0,
     align: 'center',

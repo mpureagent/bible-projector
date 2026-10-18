@@ -18,6 +18,7 @@ const baseStyle: ProjectionStyle = {
   currentColor: null,
   background: null,
   backgroundImage: null,
+  backgroundMode: 'theme',
   lineHeight: 1.7,
   letterSpacing: 0,
   align: 'center',
@@ -42,9 +43,9 @@ describe('T4-style 渲染端样式全项（§2.3）', () => {
   it('字体四选：fontFamily 栈特征字体逐一致（DOM 会规范化引号）', () => {
     const features: Record<string, string> = {
       'embedded-serif': '"Bible Serif SC"',
-      'system-serif': 'SimSun',
+      'system-serif': 'system-ui',
       kai: 'KaiTi',
-      sans: 'Noto Sans CJK SC',
+      sans: '"Bible Sans SC"',
     }
     for (const key of ['embedded-serif', 'system-serif', 'kai', 'sans'] as const) {
       const root = mount()
@@ -57,7 +58,13 @@ describe('T4-style 渲染端样式全项（§2.3）', () => {
     const root = mount()
     renderProjection(
       root,
-      stateWith({ color: '#AABBCC', verseNumberColor: '#112233', currentColor: '#445566', background: '#001122' }),
+      stateWith({
+        color: '#AABBCC',
+        verseNumberColor: '#112233',
+        currentColor: '#445566',
+        backgroundMode: 'color',
+        background: '#001122',
+      }),
     )
     expect(root.style.color).toBe('#AABBCC')
     expect(root.style.backgroundColor).toBe('#001122')
@@ -68,14 +75,14 @@ describe('T4-style 渲染端样式全项（§2.3）', () => {
   it('内置纹理：backgroundImage 指向随包 svg 且 cover', () => {
     const root = mount()
     const tex = TEXTURES[0]!
-    renderProjection(root, stateWith({ backgroundImage: `builtin:${tex.id}` }))
+    renderProjection(root, stateWith({ backgroundMode: 'texture', backgroundImage: `builtin:${tex.id}` }))
     expect(root.style.backgroundImage).toContain(`../textures/${tex.file}`)
     expect(root.style.backgroundSize).toBe('cover')
   })
 
   it('自定义本地背景图：file:// URL 引用', () => {
     const root = mount()
-    renderProjection(root, stateWith({ backgroundImage: '/data/pics/bg.png' }))
+    renderProjection(root, stateWith({ backgroundMode: 'image', backgroundImage: '/data/pics/bg.png' }))
     expect(root.style.backgroundImage).toContain('file:///data/pics/bg.png')
   })
 

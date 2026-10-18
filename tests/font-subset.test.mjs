@@ -38,9 +38,9 @@ describe('T4-font 字符集提取（generated/bible.json 全量经文）', () =>
     expect(checked).toBeGreaterThan(1000000)
   })
 
-  it('含投影 UI 固定字符（第/章/节/圣言投屏/数字/标点）', () => {
+  it('含投影/控制窗 UI 固定字符（含 × − ＋ ≥ 全角括号等符号，打包无豆腐块）', () => {
     const charset = extractCharset(bible)
-    for (const ch of '圣言投屏主题字号黑场开关锁定显示器主屏第章节卷·-0123456789：') {
+    for (const ch of '圣言投屏样式主题字号旧约新约历史复制经文取消投屏预设排版字体对齐行距字距边距背景纯色纹理重置为当前第章节卷×−＋≥（）·-0123456789：') {
       expect(charset.has(ch), `缺失 UI 字符 ${ch}`).toBe(true)
     }
   })
@@ -83,6 +83,26 @@ describe('T4-font 子集产物对账（manifest + woff2）', () => {
     expect(bytes).toBe(manifest.bytes)
     expect(bytes).toBeLessThanOrEqual(5 * 1024 * 1024)
     expect(manifest.sha256).toMatch(/^[0-9a-f]{64}$/)
+  })
+})
+
+describe('T7-style 黑体（子集）产物（R5：黑体优先本机 Noto Sans CJK SC 子集化）', () => {
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+  const sansPath = resolve(here, 'assets/fonts/bible-sans-sc.woff2')
+
+  it('manifest.sans 声明源为本地 Noto Sans CJK SC（TTC font-number 2），未联网', () => {
+    expect(manifest.sans).toBeTruthy()
+    expect(manifest.sans.source).toContain('NotoSansCJK')
+    expect(manifest.sans.sourceFontNumber).toBe(2)
+    expect(manifest.sans.sourceFamily).toBe('Noto Sans CJK SC')
+  })
+
+  it('黑体 woff2 实测字节数与 manifest 一致且 ≤5MB', () => {
+    expect(existsSync(sansPath)).toBe(true)
+    const bytes = statSync(sansPath).size
+    console.log(`[T7-style] sans woff2 bytes=${bytes} (${(bytes / 1024 / 1024).toFixed(3)}MB)`)
+    expect(bytes).toBe(manifest.sans.bytes)
+    expect(bytes).toBeLessThanOrEqual(5 * 1024 * 1024)
   })
 })
 
