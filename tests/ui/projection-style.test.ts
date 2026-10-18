@@ -10,7 +10,6 @@ import type { AppState, ProjectionStyle } from '../../src/shared/types'
 const baseStyle: ProjectionStyle = {
   theme: 'ink',
   fontSize: 72,
-  mode: 'paragraph',
   hideVerseNumbers: false,
   hideTitle: false,
   fontFamily: 'embedded-serif',
@@ -38,7 +37,6 @@ function mount(): HTMLElement {
   return root
 }
 
-const viewport = { width: 1280, height: 720 }
 
 describe('T4-style 渲染端样式全项（§2.3）', () => {
   it('字体四选：fontFamily 栈特征字体逐一致（DOM 会规范化引号）', () => {
@@ -50,7 +48,7 @@ describe('T4-style 渲染端样式全项（§2.3）', () => {
     }
     for (const key of ['embedded-serif', 'system-serif', 'kai', 'sans'] as const) {
       const root = mount()
-      renderProjection(root, stateWith({ fontFamily: key }), viewport)
+      renderProjection(root, stateWith({ fontFamily: key }))
       expect(root.querySelector<HTMLElement>('.passage')?.style.fontFamily).toContain(features[key])
     }
   })
@@ -60,31 +58,30 @@ describe('T4-style 渲染端样式全项（§2.3）', () => {
     renderProjection(
       root,
       stateWith({ color: '#AABBCC', verseNumberColor: '#112233', currentColor: '#445566', background: '#001122' }),
-      viewport,
     )
     expect(root.style.color).toBe('#AABBCC')
     expect(root.style.backgroundColor).toBe('#001122')
     expect(root.querySelector<HTMLElement>('sup.vnum')?.style.color).toBe('#112233')
-    expect(root.querySelector<HTMLElement>('.verse.current .vtext')?.style.color).toBe('#445566')
+    expect(root.querySelector<HTMLElement>('.flow .vtext.current')?.style.color).toBe('#445566')
   })
 
   it('内置纹理：backgroundImage 指向随包 svg 且 cover', () => {
     const root = mount()
     const tex = TEXTURES[0]!
-    renderProjection(root, stateWith({ backgroundImage: `builtin:${tex.id}` }), viewport)
+    renderProjection(root, stateWith({ backgroundImage: `builtin:${tex.id}` }))
     expect(root.style.backgroundImage).toContain(`../textures/${tex.file}`)
     expect(root.style.backgroundSize).toBe('cover')
   })
 
   it('自定义本地背景图：file:// URL 引用', () => {
     const root = mount()
-    renderProjection(root, stateWith({ backgroundImage: '/data/pics/bg.png' }), viewport)
+    renderProjection(root, stateWith({ backgroundImage: '/data/pics/bg.png' }))
     expect(root.style.backgroundImage).toContain('file:///data/pics/bg.png')
   })
 
   it('行距/字距/对齐/边距内联生效，分页跟随行距与边距', () => {
     const root = mount()
-    renderProjection(root, stateWith({ lineHeight: 2.4, letterSpacing: 0.12, align: 'left', margin: 15 }), viewport)
+    renderProjection(root, stateWith({ lineHeight: 2.4, letterSpacing: 0.12, align: 'left', margin: 15 }))
     const passage = root.querySelector<HTMLElement>('.passage')!
     expect(passage.style.lineHeight).toBe('2.4')
     expect(passage.style.letterSpacing).toBe('0.12em')
@@ -97,12 +94,13 @@ describe('T4-style 预设主题一键套用（三套 token 全等）', () => {
   for (const name of ['ink', 'ivory', 'ocean'] as const) {
     it(`${name}：套用预设补丁后投影 token === PROJECTION_THEMES.${name}`, () => {
       const root = mount()
-      renderProjection(root, stateWith(PROJECTION_THEME_PRESETS[name]!), viewport)
+      renderProjection(root, stateWith(PROJECTION_THEME_PRESETS[name]!))
       const theme = PROJECTION_THEMES[name]!
       expect(root.style.backgroundColor).toBe(theme.background)
       expect(root.style.color).toBe(theme.color)
       expect(root.querySelector<HTMLElement>('sup.vnum')?.style.color).toBe(theme.verseNumber)
-      expect(root.querySelector<HTMLElement>('.verse.current .vtext')?.style.color).toBe(theme.currentColor)
+      expect(root.querySelector<HTMLElement>('.flow .vtext.current')?.style.color).toBe(theme.currentColor)
+      expect(root.querySelector<HTMLElement>('.flow .vtext.current')?.style.backgroundColor).toBe(theme.currentBackground)
     })
   }
 })

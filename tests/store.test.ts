@@ -27,7 +27,6 @@ describe('AppState 状态中枢（§3.2 单向数据流）', () => {
       style: {
         theme: 'ink',
         fontSize: 72,
-        mode: 'paragraph',
         hideVerseNumbers: false,
         hideTitle: false,
         fontFamily: 'embedded-serif',
@@ -77,7 +76,6 @@ describe('AppState 状态中枢（§3.2 单向数据流）', () => {
     expect(config.style).toEqual({
       theme: 'ink',
       fontSize: 96,
-      mode: 'paragraph',
       hideVerseNumbers: false,
       hideTitle: false,
       fontFamily: 'embedded-serif',
@@ -103,12 +101,11 @@ describe('AppState 状态中枢（§3.2 单向数据流）', () => {
 
   it('启动时从 userData 恢复样式与显示器指派', () => {
     const { persistence } = fakePersistence()
-    persistence.loadConfig = () => ({ style: { theme: 'ivory', fontSize: 60, mode: 'single' }, display: 7 })
+    persistence.loadConfig = () => ({ style: { theme: 'ivory', fontSize: 60 }, display: 7 })
     const store = new AppStateStore(persistence)
     expect(store.getState().style).toEqual({
       theme: 'ivory',
       fontSize: 60,
-      mode: 'single',
       hideVerseNumbers: false,
       hideTitle: false,
       fontFamily: 'embedded-serif',

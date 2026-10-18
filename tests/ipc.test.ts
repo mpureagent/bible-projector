@@ -84,7 +84,6 @@ describe('IPC 通道契约（action → 状态 → 广播，mock 渲染端）', 
     const patch = {
       theme: 'ocean',
       fontSize: 108,
-      mode: 'single',
       hideVerseNumbers: true,
       hideTitle: true,
       fontFamily: 'kai',

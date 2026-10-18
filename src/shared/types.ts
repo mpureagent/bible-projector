@@ -6,14 +6,12 @@ import type { Align, FontChoice } from './style'
 
 export type ThemeName = 'ink' | 'ivory' | 'ocean'
 
-export type LayoutMode = 'paragraph' | 'single'
-
 // §2.3 样式全项：色值/背景图 null = 跟随当前主题 token；backgroundImage 为
 // 'builtin:<纹理id>'（随包）或本地绝对路径（网络 URL 在 store 层被清洗）
+// T7-flow（R2/R4）：单节模式 mode 废除——排版定死自然段落流一种。
 export interface ProjectionStyle {
   theme: ThemeName
   fontSize: number
-  mode: LayoutMode
   hideVerseNumbers: boolean
   hideTitle: boolean
   fontFamily: FontChoice
@@ -64,7 +62,11 @@ export const IPC_CHANNELS = {
   getHistory: 'app:get-history',
   state: 'app:state',
   banner: 'app:banner',
+  // T7-flow（R4）：滚动副通道——控制窗 PgUp/PgDn 令投影窗纵向滚动一屏（瞬态，不入状态）
+  scroll: 'app:scroll',
 } as const
+
+export type ScrollDirection = 'up' | 'down'
 
 const ACTION_TYPES = new Set(['select', 'style', 'display', 'projecting'])
 
@@ -80,6 +82,9 @@ export interface BridgeApi {
   getHistory(): Promise<HistoryEntry[]>
   onState(callback: (state: AppState) => void): () => void
   onBanner(callback: (banner: { text: string | null }) => void): () => void
+  // T7-flow（R4）：滚动副通道（控制窗 → 投影窗）
+  sendScroll(direction: ScrollDirection): void
+  onScroll(callback: (direction: ScrollDirection) => void): () => void
 }
 
 declare global {

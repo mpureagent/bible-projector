@@ -10,7 +10,6 @@ const state: AppState = {
   style: {
     theme: 'ink',
     fontSize: 72,
-    mode: 'paragraph',
     hideVerseNumbers: false,
     hideTitle: false,
     fontFamily: 'embedded-serif',
@@ -30,6 +29,7 @@ const state: AppState = {
 
 describe('T6-project 投影窗 Esc 退出投屏', () => {
   beforeEach(() => {
+    document.body.innerHTML = '<div id="stage"></div><div id="scrollbar"></div>'
     const dispatch = vi.fn()
     const onState = vi.fn(() => () => {})
     let bannerCallback: ((banner: { text: string | null }) => void) | null = null
@@ -41,6 +41,8 @@ describe('T6-project 投影窗 Esc 退出投屏', () => {
       dispatch,
       onState,
       onBanner,
+      onScroll: vi.fn(() => () => {}),
+      sendScroll: vi.fn(),
       getState: () => Promise.resolve(state),
       getHistory: () => Promise.resolve([]),
     }

@@ -47,7 +47,7 @@ describe('T7-projection IPC 通道裁撤（R1）', () => {
   it('IPC_CHANNELS 契约常量不含 getDisplays / projectionFullscreen 键', () => {
     expect('getDisplays' in IPC_CHANNELS).toBe(false)
     expect('projectionFullscreen' in IPC_CHANNELS).toBe(false)
-    expect(Object.keys(IPC_CHANNELS).sort()).toEqual(['action', 'banner', 'getHistory', 'getState', 'state'])
+    expect(Object.keys(IPC_CHANNELS).sort()).toEqual(['action', 'banner', 'getHistory', 'getState', 'scroll', 'state'])
   })
 
   it('display 指派持久化：dispatch display → config.json 落 id', () => {

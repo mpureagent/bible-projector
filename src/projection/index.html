@@ -14,28 +14,22 @@
         transition: background 0.2s ease, color 0.2s ease;
         overflow: hidden;
       }
+      /* R4：投影=纵向瀑布流连续滚动容器（整段所选经文一个长流，从上往下读） */
       #stage {
         height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        overflow-y: auto;
+        overflow-x: hidden;
       }
-      .passage {
-        text-align: center;
-        padding: 8%;
-        line-height: 1.7;
-        max-width: 100%;
-      }
-      .passage-title {
-        font-size: 0.28em;
-        opacity: 0.6;
-        margin-bottom: 1.2em;
-        letter-spacing: 0.2em;
-      }
-      .verse { margin: 0 0 0.4em; }
-      .verse.current .vtext { text-shadow: 0 0 24px rgba(232, 200, 122, 0.25); }
-      .verse sup.vnum { font-size: 0.38em; margin-right: 0.6em; vertical-align: super; }
-      .placeholder { font-size: 36px; opacity: 0.5; }
+      #stage::-webkit-scrollbar { width: 0; height: 0; }
+      .passage { padding: 8%; line-height: 1.7; max-width: 100%; }
+      /* R2：自然段落连续流——节号上标嵌句首，不再一节一行 */
+      .flow { margin: 0; }
+      .flow sup.vnum { font-size: 0.5em; margin: 0 0.3em 0 0.15em; vertical-align: super; }
+      .flow .vtext { white-space: pre-wrap; }
+      /* R2：当前节 = 段内句子级点亮（底色+字色，会众跟读定位） */
+      .flow .vtext.current { border-radius: 6px; padding: 0 0.08em; }
+      .passage-title { opacity: 0.6; margin-bottom: 1.2em; letter-spacing: 0.2em; }
+      .placeholder { font-size: 36px; opacity: 0.5; padding: 8%; }
       #hint {
         position: fixed;
         top: 0;
@@ -46,22 +40,35 @@
         padding: 10px 0;
         background: rgba(0, 0, 0, 0.55);
         display: none;
+        z-index: 20;
       }
-      #meta {
+      /* R4：底部细滚动进度条——无箭头无页数；淡显 30%，静止 3s 全隐 */
+      #scrollbar {
         position: fixed;
-        bottom: 3%;
         left: 0;
         right: 0;
-        text-align: center;
-        font-size: 18px;
-        opacity: 0.55;
+        bottom: 0;
+        height: 3px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: 15;
+      }
+      #scrollbar.visible { opacity: 0.3; }
+      #scrollbar .scrollbar-thumb {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 30%;
+        left: calc(var(--scroll-ratio, 0) * 70%);
+        background: #E8C87A;
+        border-radius: 2px;
       }
     </style>
   </head>
   <body>
     <div id="hint">电视请用 Win+P 扩展模式</div>
     <div id="stage"><div class="placeholder">圣言投屏</div></div>
-    <div id="meta">—</div>
+    <div id="scrollbar"><div class="scrollbar-thumb"></div></div>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

@@ -17,7 +17,6 @@ const html = readFileSync('src/control/index.html', 'utf-8')
 const baseStyle: ProjectionStyle = {
   theme: 'ink',
   fontSize: 72,
-  mode: 'paragraph',
   hideVerseNumbers: false,
   hideTitle: false,
   fontFamily: 'embedded-serif',
@@ -140,7 +139,7 @@ describe('T7-layout 复制经文（R3：从预览复制为真实场景）', () =
     const root = mount()
     const view = new PreviewView(root)
     view.render(stateWith())
-    const body = root.querySelector('.verse .vtext')!
+    const body = root.querySelector('.flow .vtext')!
     const range = document.createRange()
     range.selectNodeContents(body)
     const sel = window.getSelection()

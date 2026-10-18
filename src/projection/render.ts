@@ -1,19 +1,13 @@
 import { bookBySn, chapterVerses } from '../shared/bible'
-import { applyStageStyle, buildPassage, resolveFontSize, resolveMargin, type PassageVerse } from '../shared/passage'
+import { applyStageStyle, buildPassage, resolveFontSize, type PassageVerse } from '../shared/passage'
 import type { AppState } from '../shared/types'
-import { computePages, pageForVerse } from './paginate'
 
-// T3-cascade/T4-layout/T7-layout：投影窗渲染。排版核已抽到 shared/passage.ts 与预览同源。
-// 本文件只负责：舞台样式 + 当前页/单节经文选取（分页引擎 T7-flow 退役）。
+// T3-cascade/T4-layout/T7-layout/T7-flow：投影窗渲染。
+// R2/R4：废除分页引擎——整个所选范围按**自然段落连续流**一次排版，纵向滚动阅读；
+// 排版核 shared/passage.ts 与预览同源。
 
-export interface Viewport {
-  width: number
-  height: number
-}
-
-const DEFAULT_VIEWPORT: Viewport = { width: 1920, height: 1080 }
-
-export function renderProjection(root: HTMLElement, state: AppState, viewport: Viewport = DEFAULT_VIEWPORT): void {
+// 分页引擎已退役（R4）：排版不再依赖视口，整段一次渲染为纵向瀑布流
+export function renderProjection(root: HTMLElement, state: AppState): void {
   applyStageStyle(root, state.style)
   root.replaceChildren()
 
@@ -27,36 +21,19 @@ export function renderProjection(root: HTMLElement, state: AppState, viewport: V
 
   const sel = state.selection
   const book = bookBySn(sel.sn)
-  const style = state.style
-  const fontSize = resolveFontSize(style)
-  const margin = resolveMargin(style)
   const verses = chapterVerses(sel.sn, sel.chapter)
-
-  let list: PassageVerse[]
-  if (style.mode === 'single') {
-    const text = verses[sel.verses.from - 1]
-    list = text === undefined ? [] : [{ number: sel.verses.from, text }]
-  } else {
-    const pages = computePages(verses, {
-      viewportWidth: viewport.width,
-      viewportHeight: viewport.height,
-      fontSize,
-      lineHeight: style.lineHeight,
-      marginPercent: margin,
-      showTitle: !style.hideTitle,
-    })
-    const page = pages[pageForVerse(pages, sel.verses.from)] ?? []
-    list = page
-      .map((n) => ({ number: n, text: verses[n - 1] ?? '' }))
-      .filter((v) => v.text !== '')
+  const list: PassageVerse[] = []
+  for (let v = sel.verses.from; v <= sel.verses.to; v++) {
+    const text = verses[v - 1]
+    if (text !== undefined) list.push({ number: v, text })
   }
 
   root.appendChild(
     buildPassage(
       { bookName: book?.name ?? `卷 ${sel.sn}`, chapter: sel.chapter, from: sel.verses.from, to: sel.verses.to },
       list,
-      style,
-      { fontSize, currentVerse: sel.verses.from, mode: style.mode },
+      state.style,
+      { fontSize: resolveFontSize(state.style), currentVerse: sel.verses.from },
     ),
   )
 }

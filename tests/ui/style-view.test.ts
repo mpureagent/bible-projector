@@ -10,7 +10,6 @@ import type { ProjectionStyle } from '../../src/shared/types'
 const baseStyle: ProjectionStyle = {
   theme: 'ink',
   fontSize: 72,
-  mode: 'paragraph',
   hideVerseNumbers: false,
   hideTitle: false,
   fontFamily: 'embedded-serif',
@@ -108,17 +107,14 @@ describe('T4-style 样式抽屉组件', () => {
     expect(dispatchStyle).toHaveBeenCalledWith({ backgroundImage: '/data/pics/bg.png' })
   })
 
-  it('隐藏节号/隐藏标题/模式控件 dispatch；字号步进 12', () => {
+  it('隐藏节号/隐藏标题 dispatch；单节模式开关已废除（无 mode 控件，R2/R4）', () => {
     const { root, dispatchStyle } = mount()
     const hideNums = root.querySelector<HTMLInputElement>('[data-field="hideVerseNumbers"]')!
     hideNums.checked = true
     hideNums.dispatchEvent(new Event('change'))
     expect(dispatchStyle).toHaveBeenCalledWith({ hideVerseNumbers: true })
 
-    const mode = root.querySelector<HTMLSelectElement>('[data-field="mode"]')!
-    mode.value = 'single'
-    mode.dispatchEvent(new Event('change'))
-    expect(dispatchStyle).toHaveBeenCalledWith({ mode: 'single' })
+    expect(root.querySelector('[data-field="mode"]')).toBeNull()
   })
 
   it('抽屉显隐：setVisible/hidden 属性互切', () => {
@@ -132,12 +128,11 @@ describe('T4-style 样式抽屉组件', () => {
 
   it('renderState 同步控件值与当前状态一致', () => {
     const { view, root } = mount()
-    view.renderState({ ...baseStyle, fontFamily: 'sans', fontSize: 96, align: 'left', margin: 12, mode: 'single' })
+    view.renderState({ ...baseStyle, fontFamily: 'sans', fontSize: 96, align: 'left', margin: 12 })
     expect(root.querySelector<HTMLSelectElement>('[data-field="fontFamily"]')?.value).toBe('sans')
     expect(root.querySelector<HTMLInputElement>('[data-field="fontSize"]')?.value).toBe('96')
     expect(root.querySelector<HTMLSelectElement>('[data-field="align"]')?.value).toBe('left')
     expect(root.querySelector<HTMLInputElement>('[data-field="margin"]')?.value).toBe('12')
-    expect(root.querySelector<HTMLSelectElement>('[data-field="mode"]')?.value).toBe('single')
   })
 
   it('字体选项标签含 内嵌宋体/系统宋体/楷体/黑体', () => {

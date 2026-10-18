@@ -131,7 +131,6 @@ describe('T4-style store 钳制/清洗/持久化', () => {
       patch: {
         theme: 'ivory',
         fontSize: 120,
-        mode: 'single',
         hideVerseNumbers: true,
         hideTitle: true,
         fontFamily: 'kai',

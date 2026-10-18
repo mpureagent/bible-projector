@@ -122,6 +122,11 @@ createKeyboardController({
   isDrawerOpen: () => !styleViewRoot.hidden,
   closeDrawer: () => styleView.setVisible(false),
   toggleDrawer: () => styleView.toggle(),
+  // T7-flow（R4）：PgUp/PgDn=一屏——预览本地滚动，并副通道令投影窗同步
+  scroll: (direction) => {
+    preview.scrollByScreen(direction)
+    window.bridge.sendScroll(direction)
+  },
 })
 
 export {}

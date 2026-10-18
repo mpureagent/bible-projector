@@ -38,10 +38,6 @@ export class StyleView {
       this.section('预设主题', this.themeButtons()),
       this.section(
         '排版',
-        this.selectField('模式', 'mode', [
-          { value: 'paragraph', label: '段落（整章）' },
-          { value: 'single', label: '单节（大字）' },
-        ]),
         this.numberField('字号 px', 'fontSize', 8, 200, 4),
         this.selectField('字体', 'fontFamily', FONT_CHOICES),
         this.selectField('对齐', 'align', ALIGNS),
@@ -72,7 +68,7 @@ export class StyleView {
 
   renderState(style: ProjectionStyle): void {
     const record = style as unknown as Record<string, unknown>
-    for (const name of ['mode', 'fontFamily', 'align']) {
+    for (const name of ['fontFamily', 'align']) {
       const el = this.root.querySelector<HTMLSelectElement>(`[data-field="${name}"]`)
       if (el) el.value = String(record[name] ?? '')
     }

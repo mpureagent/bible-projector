@@ -10,7 +10,6 @@ import type { Action, AppState, ProjectionStyle } from '../../src/shared/types'
 const baseStyle: ProjectionStyle = {
   theme: 'ink',
   fontSize: 72,
-  mode: 'paragraph',
   hideVerseNumbers: false,
   hideTitle: false,
   fontFamily: 'embedded-serif',

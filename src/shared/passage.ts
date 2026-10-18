@@ -5,7 +5,7 @@
 import { bookBySn, chapterVerses } from './bible'
 import { FONT_STACKS, TEXTURES } from './style'
 import { PROJECTION_THEMES, type ProjectionTheme } from './themes'
-import type { LayoutMode, ProjectionStyle, Selection } from './types'
+import type { ProjectionStyle, Selection } from './types'
 
 const BUILTIN_PREFIX = 'builtin:'
 export const FONT_SIZE_MAX = 200 // §11：字号上限
@@ -60,9 +60,10 @@ export interface PassageMeta {
 export interface PassageOptions {
   fontSize: number
   currentVerse: number | null
-  mode: LayoutMode
 }
 
+// R2/R4：自然段落连续流——整个所选范围排一段，节号上标嵌句首（不再一节一行）。
+// 当前节 = 段内句子级点亮：其 vtext 加 class="current" + 高亮底色/字色（会众跟读定位）。
 export function buildPassage(
   meta: PassageMeta,
   verses: readonly PassageVerse[],
@@ -71,7 +72,7 @@ export function buildPassage(
 ): HTMLElement {
   const theme = themeFor(style)
   const container = document.createElement('div')
-  container.className = opts.mode === 'single' ? 'passage single' : 'passage'
+  container.className = 'passage'
   container.style.fontSize = `${opts.fontSize}px`
   container.style.padding = `${resolveMargin(style)}%`
   container.style.fontFamily = FONT_STACKS[style.fontFamily] ?? FONT_STACKS['embedded-serif']
@@ -79,16 +80,20 @@ export function buildPassage(
   container.style.letterSpacing = `${style.letterSpacing ?? 0}em`
   container.style.textAlign = style.align
 
-  if (!style.hideTitle) container.appendChild(buildTitle(meta, opts.mode))
-  for (const verse of verses) {
-    container.appendChild(buildVerse(verse, verse.number === opts.currentVerse, theme, style))
-  }
+  if (!style.hideTitle) container.appendChild(buildTitle(meta, opts.fontSize))
+  const flow = document.createElement('p')
+  flow.className = 'flow'
+  for (const verse of verses) flow.appendChild(buildVerse(verse, verse.number === opts.currentVerse, theme, style))
+  container.appendChild(flow)
   return container
 }
 
 export function passageRangeText(from: number, to: number): string {
   return from === to ? `${from}` : `${from}-${to}`
 }
+
+// 当前节 DOM 定位锚（滚动跟随用）：data-verse 标在 vtext 上
+export const VERSE_ATTR = 'data-verse'
 
 // 「复制经文」按钮的纯文本载荷：参考行 + 逐节文本（不含节号上标，便于粘贴到 PPT/文档）
 export function passageText(selection: Selection): string {
@@ -103,35 +108,37 @@ export function passageText(selection: Selection): string {
   return [header, ...lines].join('\n')
 }
 
-function buildTitle(meta: PassageMeta, mode: LayoutMode): HTMLElement {
+function buildTitle(meta: PassageMeta, fontSize: number): HTMLElement {
   const title = document.createElement('div')
   title.className = 'passage-title'
-  title.textContent =
-    mode === 'single'
-      ? `${meta.bookName} · 第 ${meta.chapter} 章 · 第 ${meta.from} 节`
-      : `${meta.bookName} · 第 ${meta.chapter} 章 · ${passageRangeText(meta.from, meta.to)} 节`
+  title.style.fontSize = `${Math.round(fontSize * 0.28)}px`
+  title.textContent = `${meta.bookName} · 第 ${meta.chapter} 章 · ${passageRangeText(meta.from, meta.to)} 节`
   return title
 }
 
+// 单个节 = 行内片段（上标节号 + 正文），随流自然换行；不再产出逐行块结构
 function buildVerse(
   verse: PassageVerse,
   current: boolean,
   theme: ProjectionTheme,
   style: ProjectionStyle,
-): HTMLElement {
-  const line = document.createElement('p')
-  line.className = current ? 'verse current' : 'verse'
+): DocumentFragment {
+  const frag = document.createDocumentFragment()
   if (!style.hideVerseNumbers) {
     const num = document.createElement('sup')
     num.className = 'vnum'
     num.textContent = String(verse.number)
     num.style.color = style.verseNumberColor ?? theme.verseNumber
-    line.appendChild(num)
+    frag.appendChild(num)
   }
   const body = document.createElement('span')
-  body.className = 'vtext'
+  body.className = current ? 'vtext current' : 'vtext'
+  body.setAttribute(VERSE_ATTR, String(verse.number))
   body.textContent = verse.text
-  if (current) body.style.color = style.currentColor ?? theme.currentColor
-  line.appendChild(body)
-  return line
+  if (current) {
+    body.style.color = style.currentColor ?? theme.currentColor
+    body.style.backgroundColor = theme.currentBackground
+  }
+  frag.appendChild(body)
+  return frag
 }

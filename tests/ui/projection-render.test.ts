@@ -5,14 +5,14 @@ import { chapterVerses } from '../../src/shared/bible'
 import { PROJECTION_THEMES } from '../../src/shared/themes'
 import type { AppState, Selection } from '../../src/shared/types'
 
-// T3-cascade 投影窗渲染（§7.1 墨金主题、节号上标小字、当前节高亮、无 U+3000 缝）
+// T3-cascade / T7-flow（R2）：投影窗**自然段落连续流**渲染——节号上标嵌句首、
+// 当前节段内句子级点亮、无逐行列表结构、无 U+3000 缝。
 
 const stateWith = (patch: Partial<AppState>): AppState => ({
   selection: null,
   style: {
     theme: 'ink',
     fontSize: 72,
-    mode: 'paragraph',
     hideVerseNumbers: false,
     hideTitle: false,
     fontFamily: 'embedded-serif',
@@ -39,7 +39,7 @@ function mount(): HTMLElement {
   return root
 }
 
-describe('T3-cascade 投影窗经文渲染', () => {
+describe('T7-flow 投影窗自然段落流渲染', () => {
   it('创 1:1 上屏：正文含「起初，神创造天地。」且整窗无 U+3000', () => {
     const root = mount()
     renderProjection(root, stateWith({ selection: gen11 }))
@@ -47,29 +47,33 @@ describe('T3-cascade 投影窗经文渲染', () => {
     expect(root.textContent).not.toContain('　')
   })
 
-  it('节号为上标小字（sup.vnum），当前节带高亮类与主题节号色', () => {
+  it('单一 .flow 容器 + 节＝行内片段：无逐行 <p class="verse"> 列表结构（R2）', () => {
     const root = mount()
-    renderProjection(root, stateWith({ selection: gen11 }))
-    const sup = root.querySelector<HTMLElement>('sup.vnum')
-    expect(sup?.textContent).toBe('1')
-    const verse = root.querySelector<HTMLElement>('.verse')
-    expect(verse?.classList.contains('current')).toBe(true)
-    expect(sup?.style.color).toBe(PROJECTION_THEMES.ink!.verseNumber)
+    renderProjection(root, stateWith({ selection: { sn: 1, chapter: 1, verses: { from: 1, to: 3 } } }))
+    expect(root.querySelectorAll('.flow')).toHaveLength(1)
+    expect(root.querySelectorAll('p.verse')).toHaveLength(0)
+    expect(root.querySelectorAll('.flow > .vtext').length).toBe(3)
   })
 
-  it('范围创 1:1-3：DOM 与数据层一致——当前页首节文本逐字比对、节号升序', () => {
+  it('节号上标嵌句首：sup.vnum 计数=节数、编号升序、样式带节号色', () => {
     const root = mount()
-    const selection: Selection = { sn: 1, chapter: 1, verses: { from: 1, to: 3 } }
-    renderProjection(root, stateWith({ selection }))
-    const verses = [...root.querySelectorAll<HTMLElement>('.verse')]
-    expect(verses.length).toBeGreaterThan(0)
-    const nums = verses.map((v) => Number(v.querySelector('sup.vnum')?.textContent))
-    expect([...nums]).toEqual([...nums].sort((a, b) => a - b))
-    for (let i = 0; i < verses.length; i++) {
-      const verseNo = nums[i]!
-      expect(verses[i]?.textContent).toContain(chapterVerses(1, 1)[verseNo - 1])
-    }
-    expect(verses[0]?.textContent).toContain(chapterVerses(1, 1)[0])
+    renderProjection(root, stateWith({ selection: { sn: 1, chapter: 1, verses: { from: 1, to: 3 } } }))
+    const sups = [...root.querySelectorAll<HTMLElement>('.flow sup.vnum')]
+    expect(sups.map((s) => s.textContent)).toEqual(['1', '2', '3'])
+    expect(sups[0]?.style.color).toBe(PROJECTION_THEMES.ink!.verseNumber)
+    // 上标在正文 span 之前（嵌句首）
+    const vtext = root.querySelector<HTMLElement>('.flow .vtext[data-verse="1"]')!
+    expect(vtext.previousElementSibling?.className).toBe('vnum')
+  })
+
+  it('当前节=段内句子级点亮：vtext.current 带主题高亮字色+底色，且唯一', () => {
+    const root = mount()
+    renderProjection(root, stateWith({ selection: { sn: 1, chapter: 1, verses: { from: 2, to: 3 } } }))
+    const currents = [...root.querySelectorAll<HTMLElement>('.flow .vtext.current')]
+    expect(currents).toHaveLength(1)
+    expect(currents[0]?.dataset.verse).toBe('2')
+    expect(currents[0]?.style.color).toBe(PROJECTION_THEMES.ink!.currentColor)
+    expect(currents[0]?.style.backgroundColor).toBe(PROJECTION_THEMES.ink!.currentBackground)
   })
 
   it('墨金主题 token 应用：背景/正文/字号来自 themes.ts 与 style.fontSize', () => {
@@ -94,5 +98,13 @@ describe('T3-cascade 投影窗经文渲染', () => {
     const root2 = mount()
     renderProjection(root2, stateWith({ selection: null }))
     expect(root2.querySelector('.placeholder')?.textContent).toBeTruthy()
+  })
+
+  it('R2/R4：整段所选范围一次渲染（纵向瀑布流），不再只渲染一页', () => {
+    const root = mount()
+    renderProjection(root, stateWith({ selection: { sn: 19, chapter: 119, verses: { from: 1, to: 12 } } }))
+    const sups = [...root.querySelectorAll('.flow sup.vnum')].map((s) => s.textContent)
+    expect(sups).toEqual(Array.from({ length: 12 }, (_, i) => String(i + 1)))
+    expect(root.textContent).toContain(chapterVerses(19, 119)[11]!)
   })
 })

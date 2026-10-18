@@ -16,7 +16,6 @@ export interface Persistence {
 const DEFAULT_STYLE: ProjectionStyle = {
   theme: 'ink',
   fontSize: 72,
-  mode: 'paragraph',
   hideVerseNumbers: false,
   hideTitle: false,
   fontFamily: 'embedded-serif',

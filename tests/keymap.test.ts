@@ -9,7 +9,6 @@ import type { AppState, ProjectionStyle } from '../src/shared/types'
 const baseStyle: ProjectionStyle = {
   theme: 'ink',
   fontSize: 72,
-  mode: 'paragraph',
   hideVerseNumbers: false,
   hideTitle: false,
   fontFamily: 'embedded-serif',
@@ -52,20 +51,11 @@ describe('§6.3 键位映射表', () => {
     expect(bottom).toBeNull()
   })
 
-  it('PgUp/PgDn 翻章：创 1 → 出 1（无前章则忽略）；诗 119 → 诗 118；书末章忽略', () => {
-    const next = mapKey('PageDown', state())
-    expect(next).toEqual({
-      kind: 'action',
-      action: { type: 'select', selection: { sn: 1, chapter: 2, verses: { from: 1, to: 1 } } },
-    })
-    expect(mapKey('PageUp', state())).toBeNull() // 创 1 无前章
-    const ps = state({ selection: { sn: 19, chapter: 119, verses: { from: 1, to: 1 } } })
-    expect(mapKey('PageUp', ps)).toEqual({
-      kind: 'action',
-      action: { type: 'select', selection: { sn: 19, chapter: 118, verses: { from: 1, to: 1 } } },
-    })
-    const lastChapter = state({ selection: { sn: 19, chapter: 150, verses: { from: 1, to: 1 } } })
-    expect(mapKey('PageDown', lastChapter)).toBeNull() // 诗篇共 150 章
+  it('R4 修订：PgUp/PgDn = 纵向滚动一屏（scroll 意图，不再翻章）；无选区无意图', () => {
+    expect(mapKey('PageDown', state())).toEqual({ kind: 'scroll', direction: 'down' })
+    expect(mapKey('PageUp', state())).toEqual({ kind: 'scroll', direction: 'up' })
+    expect(mapKey('PageDown', state({ selection: null }))).toBeNull()
+    expect(mapKey('PageUp', state({ selection: null }))).toBeNull()
   })
 
   it('±字号、S 抽屉', () => {

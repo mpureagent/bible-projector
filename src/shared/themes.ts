@@ -31,11 +31,13 @@ export const CATEGORY_COLORS: Record<number, CategoryColor> = {
 }
 
 // §7.2 投影预设主题 token（节号色/当前节高亮色为 T4 新增列，渲染端唯一来源）
+// T7-flow（R2）：currentBackground = 当前节「句子级点亮」的高亮底色（会众跟读定位）
 export interface ProjectionTheme {
   background: string
   color: string
   verseNumber: string
   currentColor: string
+  currentBackground: string
 }
 
 // 主题中文显示名（R5 表；T7-style 扩到 8 套后 token 一并补齐）
@@ -51,9 +53,9 @@ export const THEME_LABELS: Record<string, string> = {
 }
 
 export const PROJECTION_THEMES: Record<string, ProjectionTheme> = {
-  ink: { background: '#101418', color: '#E8C87A', verseNumber: '#8A7440', currentColor: '#FFE9B0' },
-  ivory: { background: '#F5F1E8', color: '#2A2622', verseNumber: '#8C8375', currentColor: '#8C5A2B' },
-  ocean: { background: '#0E1B2A', color: '#F0E6D2', verseNumber: '#7E8CA0', currentColor: '#FDF6E3' },
+  ink: { background: '#101418', color: '#E8C87A', verseNumber: '#8A7440', currentColor: '#FFE9B0', currentBackground: '#33290F' },
+  ivory: { background: '#F5F1E8', color: '#2A2622', verseNumber: '#8C8375', currentColor: '#8C5A2B', currentBackground: '#EFE0C2' },
+  ocean: { background: '#0E1B2A', color: '#F0E6D2', verseNumber: '#7E8CA0', currentColor: '#FDF6E3', currentBackground: '#1C3247' },
 }
 
 // 一键套用补丁（§7.2）：置主题并清空全部自定义覆盖，回归主题 token

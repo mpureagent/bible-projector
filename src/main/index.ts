@@ -66,6 +66,13 @@ async function start(): Promise<void> {
     broadcast: (channel, payload) => broadcast(channel, payload),
   })
 
+  // T7-flow（R4）：控制窗 PgUp/PgDn 副通道 → 投影窗纵向滚动一屏（瞬态，不入状态）
+  ipcMain.on(IPC_CHANNELS.scroll, (_event, direction) => {
+    if ((direction === 'up' || direction === 'down') && projection && !projection.isDestroyed()) {
+      projection.webContents.send(IPC_CHANNELS.scroll, direction)
+    }
+  })
+
   wireHotplug({
     getTargetId: () => store.getState().display,
     getProjection: () => projection,
@@ -167,28 +174,39 @@ async function captureSmokeEvidence(
   mkdirSync(outDir, { recursive: true })
   // E2E：SMOKE_SELECT=<key> 在控制窗 UI 上真实走 T7 级联选经（书 → 章 → 起始节 → 结束节），
   // 经 IPC action → store → 广播 → 投影窗渲染，随后截图留证
-  const SMOKE_SELECTS: Record<string, { book: string; chapter: number; verse: number }> = {
-    'gen-1-1': { book: '创世记', chapter: 1, verse: 1 },
-    'ps-119-1': { book: '诗篇', chapter: 119, verse: 1 },
+  const SMOKE_SELECTS: Record<string, { book: string; chapter: number; from: number; to: number }> = {
+    'gen-1-1': { book: '创世记', chapter: 1, from: 1, to: 1 },
+    'ps-119-1': { book: '诗篇', chapter: 119, from: 1, to: 1 },
+    'jn-3-16': { book: '约翰福音', chapter: 3, from: 16, to: 17 },
+    'ps-23-1': { book: '诗篇', chapter: 23, from: 1, to: 3 },
   }
   const selectKey = process.env.SMOKE_SELECT
   if (selectKey && SMOKE_SELECTS[selectKey]) {
     const sel = SMOKE_SELECTS[selectKey]!
     await control.webContents.executeJavaScript(
       `(() => {
-        const book = [...document.querySelectorAll('.book-btn')].find((b) => b.title === ${JSON.stringify(sel.book)})
-        book && book.click()
+        // 用搜索框定位书卷（旧/新约 Tab 只渲染当前约，直接点 .book-btn 可能不在 DOM）
+        const input = document.querySelector('.search-input')
+        input.value = ${JSON.stringify(sel.book)}
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        const item = [...document.querySelectorAll('.search-item')].find((b) => b.dataset.name === ${JSON.stringify(sel.book)})
+        item && item.click()
         const dlg = document.querySelector('.cascade-dialog')
         const chapter = dlg && [...dlg.querySelectorAll('.cascade-chapter')].find((b) => b.textContent === ${JSON.stringify(String(sel.chapter))})
         chapter && chapter.click()
-        const from = dlg && [...dlg.querySelectorAll('.cascade-verse[data-kind="from"]')].find((b) => b.textContent === ${JSON.stringify(String(sel.verse))})
+        const from = dlg && [...dlg.querySelectorAll('.cascade-verse[data-kind="from"]')].find((b) => b.textContent === ${JSON.stringify(String(sel.from))})
         from && from.click()
-        const to = dlg && [...dlg.querySelectorAll('.cascade-verse[data-kind="to"]')].find((b) => b.textContent === ${JSON.stringify(String(sel.verse))})
+        const to = dlg && [...dlg.querySelectorAll('.cascade-verse[data-kind="to"]')].find((b) => b.textContent === ${JSON.stringify(String(sel.to))})
         to && to.click()
         return Boolean(to)
       })()`,
     )
     await logStage(projection)
+    const ctrlState: AppState = await control.webContents.executeJavaScript('window.bridge.getState()')
+    const ctrlLabel: string = await control.webContents.executeJavaScript(
+      `document.getElementById('btn-selection')?.textContent ?? ''`,
+    )
+    console.log(`[smoke] control-after-select label=${JSON.stringify(ctrlLabel)} sel=${JSON.stringify(ctrlState.selection)}`)
   }
   // T4 E2E：SMOKE_STYLE=key:value,key:value 经控制窗 bridge 真实 dispatch 样式补丁
   if (process.env.SMOKE_STYLE) {
