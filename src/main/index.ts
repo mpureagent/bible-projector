@@ -4,6 +4,7 @@ import { IPC_CHANNELS } from '../shared/types'
 import { registerIpc } from './ipc'
 import { fsPersistence } from './persist-fs'
 import { AppStateStore } from './store'
+import { migrateLegacyUserData, userDataDir } from './userdata'
 import {
   createControlWindow,
   createProjectionWindow,
@@ -20,6 +21,13 @@ import {
 // 主屏永不劫持：工作窗可最小化，投影窗独立存活，show 不抢焦点。
 
 const SMOKE_CAPTURE = process.env.SMOKE_CAPTURE === '1'
+
+// T7-package（R7b）：userData 钉到 %APPDATA%\圣言投屏；须在任何 userData 访问前设置。
+// 迁移须在 Chromium 初始化 profile 目录之前执行（否则新目录已非空 → 迁移跳过的窗口期），
+// 故放在模块加载期、ready 之前；失败不崩（migrateLegacyUserData 内部兜底+告警）。
+const APP_DATA_DIR = app.getPath('appData')
+app.setPath('userData', userDataDir(APP_DATA_DIR))
+migrateLegacyUserData(APP_DATA_DIR)
 
 let control: BrowserWindow | null = null
 let projection: BrowserWindow | null = null
