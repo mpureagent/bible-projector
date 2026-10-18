@@ -44,6 +44,7 @@ describe('AppState 状态中枢（§3.2 单向数据流）', () => {
       blank: false,
       lock: false,
       display: null,
+      projecting: false,
     })
   })
 

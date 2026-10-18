@@ -171,6 +171,12 @@
         background: #FFFFFF;
       }
       .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+      .project-btn { min-width: 112px; font-weight: 600; }
+      .project-btn.active {
+        background: #A8863C;
+        border-color: #8A6D2F;
+        color: #FFFDF8;
+      }
       button {
         font-family: inherit;
         font-size: 14px;
@@ -249,12 +255,14 @@
     <section class="controls-box">
       <dl>
         <dt>selection</dt><dd id="st-selection">—</dd>
+        <dt>projecting</dt><dd id="st-projecting">—</dd>
         <dt>style</dt><dd id="st-style">—</dd>
         <dt>blank</dt><dd id="st-blank">—</dd>
         <dt>lock</dt><dd id="st-lock">—</dd>
         <dt>display</dt><dd id="st-display">—</dd>
       </dl>
       <div class="controls">
+        <button id="btn-project" class="project-btn" title="投屏 / 取消投屏（P）">投屏</button>
         <button id="btn-blank">黑场</button>
         <button id="btn-lock">锁屏</button>
         <button id="btn-font-up">字号 +</button>

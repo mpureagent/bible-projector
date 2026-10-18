@@ -31,6 +31,7 @@ const stateWith = (style: Partial<ProjectionStyle>, selectionVerse = 1): AppStat
   blank: false,
   lock: false,
   display: null,
+  projecting: false,
 })
 
 function mount(): HTMLElement {

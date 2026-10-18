@@ -24,6 +24,10 @@ export function mapKey(key: string, state: AppState): KeyIntent | null {
     case 'b':
     case 'B':
       return { kind: 'action', action: { type: 'blank', value: !state.blank } }
+    case 'p':
+    case 'P':
+      // T6-project：投屏/取消投屏（与控制窗大按钮同义）
+      return { kind: 'action', action: { type: 'projecting', value: !state.projecting } }
     case 'f':
     case 'F':
       return { kind: 'toggle-fullscreen' }

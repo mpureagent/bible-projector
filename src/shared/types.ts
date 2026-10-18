@@ -44,6 +44,8 @@ export interface AppState {
   blank: boolean
   lock: boolean
   display: number | null
+  // T6-project：投屏中。false=本地阅读模式（选经只更新控制窗，不广播投影窗）
+  projecting: boolean
 }
 
 export type Action =
@@ -52,6 +54,7 @@ export type Action =
   | { type: 'blank'; value: boolean }
   | { type: 'lock'; value: boolean }
   | { type: 'display'; id: number }
+  | { type: 'projecting'; value: boolean }
 
 export interface HistoryEntry {
   selection: Selection
@@ -74,7 +77,7 @@ export interface DisplayInfo {
   primary: boolean
 }
 
-const ACTION_TYPES = new Set(['select', 'style', 'blank', 'lock', 'display'])
+const ACTION_TYPES = new Set(['select', 'style', 'blank', 'lock', 'display', 'projecting'])
 
 export function isAction(value: unknown): value is Action {
   if (typeof value !== 'object' || value === null) return false

@@ -29,6 +29,7 @@ const state = (patch: Partial<AppState> = {}): AppState => ({
   blank: false,
   lock: false,
   display: null,
+  projecting: false,
   ...patch,
 })
 
@@ -88,6 +89,26 @@ describe('T4-keys §6.3 键位映射表', () => {
     for (const key of ['x', 'X', 'Enter', 'Tab', 'ArrowLeft', 'ArrowRight', '1']) {
       expect(mapKey(key, state()), `键 ${key}`).toBeNull()
     }
+  })
+})
+
+describe('T6-project 投屏键位（P 键 + Esc 语义不变）', () => {
+  it('P 投屏/取消投屏：projecting=false → true；true → false', () => {
+    expect(mapKey('p', state())).toEqual({ kind: 'action', action: { type: 'projecting', value: true } })
+    expect(mapKey('P', state({ projecting: true }))).toEqual({
+      kind: 'action',
+      action: { type: 'projecting', value: false },
+    })
+  })
+
+  it('锁屏下 P 被拦截（防误触，与 B/F 同语义）', () => {
+    expect(mapKey('p', state({ lock: true }))).toBeNull()
+    expect(mapKey('P', state({ lock: true }))).toBeNull()
+  })
+
+  it('控制窗 Esc 语义保持既有：黑场优先，否则退出全屏', () => {
+    expect(mapKey('Escape', state({ blank: true }))).toEqual({ kind: 'action', action: { type: 'blank', value: false } })
+    expect(mapKey('Escape', state())).toEqual({ kind: 'exit-fullscreen' })
   })
 })
 

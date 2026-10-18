@@ -81,6 +81,12 @@ function render(state: AppState): void {
     if (el) el.textContent = text
   }
   set('st-selection', state.selection ? `${state.selection.sn} ${state.selection.chapter}:${state.selection.verses.from}-${state.selection.verses.to}` : 'null')
+  set('st-projecting', String(state.projecting))
+  const btnProject = document.getElementById('btn-project')
+  if (btnProject) {
+    btnProject.textContent = state.projecting ? '取消投屏' : '投屏'
+    btnProject.classList.toggle('active', state.projecting)
+  }
   set('st-style', `${state.style.theme} / ${state.style.fontSize}px`)
   set('st-blank', String(state.blank))
   set('st-lock', String(state.lock))
@@ -95,6 +101,7 @@ const on = (id: string, fn: () => void) => {
   if (el) el.addEventListener('click', fn)
 }
 
+on('btn-project', () => void window.bridge.dispatch({ type: 'projecting', value: !(current?.projecting ?? false) }))
 on('btn-blank', () => void window.bridge.dispatch({ type: 'blank', value: !(current?.blank ?? false) }))
 on('btn-lock', () => void window.bridge.dispatch({ type: 'lock', value: !(current?.lock ?? false) }))
 on('btn-font-up', () => void window.bridge.dispatch({ type: 'style', patch: { fontSize: (current?.style.fontSize ?? 72) + 12 } }))

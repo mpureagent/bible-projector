@@ -30,6 +30,7 @@ const state = (patch: Partial<AppState> = {}): AppState => ({
   blank: false,
   lock: false,
   display: null,
+  projecting: false,
   ...patch,
 })
 
@@ -67,6 +68,8 @@ function reduce(s: AppState, action: Action): AppState {
       return { ...s, selection: action.selection }
     case 'display':
       return { ...s, display: action.id }
+    case 'projecting':
+      return { ...s, projecting: action.value }
   }
 }
 
@@ -95,6 +98,14 @@ describe('T4-keys 键盘控制器', () => {
     const { press, setFullscreen } = setup()
     press('f')
     expect(setFullscreen).toHaveBeenCalledWith(undefined)
+  })
+
+  it('T6-project：P → 投屏 true，再按 P → 取消投屏 false（与顶栏按钮同义）', () => {
+    const { press, dispatch } = setup()
+    press('p')
+    expect(dispatch).toHaveBeenCalledWith({ type: 'projecting', value: true })
+    press('P')
+    expect(dispatch).toHaveBeenLastCalledWith({ type: 'projecting', value: false })
   })
 
   it('S → 抽屉开合；↑ → 翻节 dispatch select', () => {

@@ -1,5 +1,6 @@
 import { app, ipcMain, screen, type BrowserWindow } from 'electron'
 import type { AppState } from '../shared/types'
+import { IPC_CHANNELS } from '../shared/types'
 import { registerIpc } from './ipc'
 import { fsPersistence } from './persist-fs'
 import { createHotplugMachine } from './hotplug'
@@ -8,7 +9,10 @@ import {
   createControlWindow,
   createProjectionWindow,
   displayById,
+  gateProjectionMessage,
+  hideProjectionWindow,
   moveProjectionTo,
+  showProjectionWindow,
   wireHotplug,
 } from './windows'
 
@@ -17,6 +21,7 @@ import {
 const SMOKE_CAPTURE = process.env.SMOKE_CAPTURE === '1'
 
 let control: BrowserWindow | null = null
+let quitting = false
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -30,6 +35,10 @@ if (!app.requestSingleInstanceLock()) {
 
   void app.whenReady().then(() => void start())
 
+  app.on('before-quit', () => {
+    quitting = true
+  })
+
   app.on('window-all-closed', () => {
     app.quit()
   })
@@ -37,6 +46,8 @@ if (!app.requestSingleInstanceLock()) {
 
 async function start(): Promise<void> {
   const store = new AppStateStore(fsPersistence(app.getPath('userData')))
+  // 烟测路径视为始终投屏中：保持 E2E 点选→投影窗上屏的取证链路不变
+  if (SMOKE_CAPTURE) store.dispatch({ type: 'projecting', value: true })
   control = createControlWindow()
 
   const target = displayById(store.getState().display) ?? screen.getPrimaryDisplay()
@@ -59,9 +70,22 @@ async function start(): Promise<void> {
 
   const broadcast = (channel: string, payload: unknown): void => {
     for (const win of [control, projection]) {
-      if (win && !win.isDestroyed()) win.webContents.send(channel, payload)
+      if (!win || win.isDestroyed()) continue
+      if (win === projection && !gateProjectionMessage(channel, payload)) continue
+      win.webContents.send(channel, payload)
     }
   }
+
+  // 单屏预览窗点关闭 = 取消投屏（窗口隐藏而非销毁，P 键可再次唤起；退出期放行真关闭）
+  projection.on('close', (event) => {
+    if (quitting || projection.isDestroyed()) return
+    event.preventDefault()
+    if (store.getState().projecting) {
+      const next = store.dispatch({ type: 'projecting', value: false })
+      broadcast(IPC_CHANNELS.state, next)
+    }
+    projection.hide()
+  })
 
   registerIpc({
     ipcMain,
@@ -82,9 +106,32 @@ async function start(): Promise<void> {
     },
   })
 
+  // projecting 迁移：true→按当前显示器上屏（单屏为预览窗）并把当前选区推上投影窗；
+  // false→隐藏投影窗。未投屏时选经广播已在 gateProjectionMessage 处被拦截
+  const applyProjecting = (state: AppState): void => {
+    if (projection.isDestroyed()) return
+    if (state.projecting) {
+      const target = displayById(state.display) ?? screen.getPrimaryDisplay()
+      showProjectionWindow(projection, target)
+    } else {
+      hideProjectionWindow(projection)
+    }
+  }
+  projection.webContents.once('did-finish-load', () => {
+    const state = store.getState()
+    if (state.projecting && !projection.isDestroyed()) {
+      projection.webContents.send(IPC_CHANNELS.state, state)
+    }
+  })
+
   // 用户在顶栏改选显示器（IPC display 动作）→ 状态机 assign
   let lastDisplay = store.getState().display
+  let lastProjecting = store.getState().projecting
   store.subscribe((state: AppState) => {
+    if (state.projecting !== lastProjecting) {
+      lastProjecting = state.projecting
+      applyProjecting(state)
+    }
     if (state.display !== lastDisplay && state.display !== null) {
       lastDisplay = state.display
       for (const effect of machine.handle({ kind: 'assign', id: state.display })) {

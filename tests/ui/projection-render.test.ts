@@ -29,6 +29,7 @@ const stateWith = (patch: Partial<AppState>): AppState => ({
   blank: false,
   lock: false,
   display: null,
+  projecting: false,
   ...patch,
 })
 

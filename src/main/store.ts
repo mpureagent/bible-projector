@@ -66,6 +66,7 @@ export class AppStateStore {
       blank: false,
       lock: false,
       display: config.display ?? null,
+      projecting: false,
     }
     this.history = persistence.loadHistory()
   }
@@ -126,5 +127,7 @@ function reduce(state: AppState, action: Action): AppState {
       return { ...state, lock: action.value }
     case 'display':
       return { ...state, display: action.id }
+    case 'projecting':
+      return { ...state, projecting: action.value }
   }
 }
