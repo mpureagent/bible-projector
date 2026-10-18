@@ -1,5 +1,7 @@
 # T6b 任务单：真机验收问题 6 修复（主题生效可见性 + 样式抽屉关闭按钮）
 
+> ⚠️ **SUPERSEDED（2026-10-17）**：内容（预览同源渲染=问题6根治、抽屉 ✕ 关闭）已并入 `docs/tickets/T7-v092.md` 的 T7-layout/T7-style。本票不再单独执行。
+
 - 提出人：Hermes（PM）
 - 执行人：Qoder（GLM-5.3 QwenCloud 通道，high 档）
 - 日期：2026-10-17
