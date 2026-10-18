@@ -61,4 +61,15 @@ describe('T3-history 历史列表渲染', () => {
     view.render([{ selection: gen11, at: Date.now() }])
     expect(root.querySelector<HTMLElement>('.history-item')?.textContent).toContain('创世记')
   })
+
+  it('T7-cascade（R2）：范围式摘要「创世记 1:1-3 · HH:MM」（默认格式化仅时分）', () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const view = new HistoryView(root, { onSelect: () => {} })
+    const at = new Date(2026, 9, 17, 10, 15, 0).getTime()
+    view.render([{ selection: { sn: 1, chapter: 1, verses: { from: 1, to: 3 } }, at }])
+    const text = root.querySelector<HTMLElement>('.history-item')?.textContent ?? ''
+    expect(text).toContain('创世记 1:1-3 · 10:15')
+    expect(text).not.toMatch(/\d{4}\/\d/)
+  })
 })

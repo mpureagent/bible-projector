@@ -1,11 +1,11 @@
 import type { AppState, ThemeName } from '../shared/types'
+import { bookBySn } from '../shared/bible'
 import { applyFontStack } from '../shared/font-dom'
 import { createKeyboardController } from './keyboard'
 import { BooksView } from './books-view'
-import { ChaptersView } from './chapters-view'
+import { CascadeView } from './cascade-view'
 import { HistoryView } from './history-view'
 import { SearchView } from './search-view'
-import { VersesView } from './verses-view'
 import { StyleView } from './style-view'
 
 applyFontStack(document)
@@ -14,27 +14,31 @@ const THEMES: ThemeName[] = ['ink', 'ivory', 'ocean']
 
 let current: AppState | null = null
 
+const selectionLabel = (): string => {
+  const sel = current?.selection
+  if (!sel) return '未选经文'
+  const name = bookBySn(sel.sn)?.name ?? `卷 ${sel.sn}`
+  const range = sel.verses.from === sel.verses.to ? `${sel.verses.from}` : `${sel.verses.from}-${sel.verses.to}`
+  return `${name} ${sel.chapter}:${range}`
+}
+
 const historyView = new HistoryView(document.getElementById('history-panel')!, {
   onSelect: (selection) => {
+    // 历史条目点击 = 直接回填选区上屏（R2）
     void window.bridge.dispatch({ type: 'select', selection })
   },
 })
 const refreshHistory = (): void => {
   void window.bridge.getHistory().then((entries) => historyView.render(entries))
 }
-const versesView = new VersesView(document.getElementById('verses-panel')!, {
+// T7-cascade（R2）：四列级联弹窗——书卷列表/搜索点选唤起，选完 dispatch select
+const cascade = new CascadeView(document.getElementById('cascade-root')!, {
   onSelect: (selection) => {
     void window.bridge.dispatch({ type: 'select', selection })
   },
 })
-const chaptersView = new ChaptersView(document.getElementById('chapters-panel')!, {
-  onChapter: (chapter) => {
-    const book = chaptersView.getBook()
-    if (book !== null) versesView.setChapter(book, chapter)
-  },
-})
 new BooksView(document.getElementById('books-panel')!, {
-  onBook: (sn) => chaptersView.setBook(sn),
+  onBook: (sn) => cascade.openWithBook(sn),
   onModeChange: (mode) => {
     historyView.setVisible(mode === 'history')
     if (mode === 'history') refreshHistory()
@@ -48,7 +52,7 @@ new BooksView(document.getElementById('books-panel')!, {
   if (tabBar && historyPanel) panel.insertBefore(tabBar, historyPanel)
 }
 new SearchView(document.getElementById('search-panel')!, {
-  onBook: (sn) => chaptersView.setBook(sn),
+  onBook: (sn) => cascade.openWithBook(sn),
 })
 
 window.bridge.onState(render)
@@ -77,6 +81,13 @@ function render(state: AppState): void {
   }
   set('st-style', `${state.style.theme} / ${state.style.fontSize}px`)
   set('st-display', String(state.display))
+  // 「当前选区」标签（未选置灰，R2/R3）
+  const btnSelection = document.getElementById('btn-selection') as HTMLButtonElement | null
+  if (btnSelection) {
+    btnSelection.textContent = selectionLabel()
+    btnSelection.classList.toggle('empty', state.selection === null)
+    btnSelection.disabled = state.selection === null
+  }
   styleView.renderState(state.style)
   refreshHistory()
 }
@@ -86,6 +97,10 @@ const on = (id: string, fn: () => void) => {
   if (el) el.addEventListener('click', fn)
 }
 
+// 「当前选区」标签：点击重新唤起级联弹窗回填修改（R2）
+on('btn-selection', () => {
+  cascade.open(current?.selection ?? null)
+})
 on('btn-project', () => void window.bridge.dispatch({ type: 'projecting', value: !(current?.projecting ?? false) }))
 on('btn-font-up', () => void window.bridge.dispatch({ type: 'style', patch: { fontSize: (current?.style.fontSize ?? 72) + 12 } }))
 on('btn-font-down', () => void window.bridge.dispatch({ type: 'style', patch: { fontSize: Math.max(24, (current?.style.fontSize ?? 72) - 12) } }))

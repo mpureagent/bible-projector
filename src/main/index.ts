@@ -165,7 +165,7 @@ async function captureSmokeEvidence(
   const delayMs = Number(process.env.SMOKE_CAPTURE_DELAY ?? 1200)
   await new Promise((resolve) => setTimeout(resolve, delayMs))
   mkdirSync(outDir, { recursive: true })
-  // E2E（§6.1 三次点击上屏）：SMOKE_SELECT=<key> 在控制窗 UI 上真实点击 书→章→节，
+  // E2E：SMOKE_SELECT=<key> 在控制窗 UI 上真实走 T7 级联选经（书 → 章 → 起始节 → 结束节），
   // 经 IPC action → store → 广播 → 投影窗渲染，随后截图留证
   const SMOKE_SELECTS: Record<string, { book: string; chapter: number; verse: number }> = {
     'gen-1-1': { book: '创世记', chapter: 1, verse: 1 },
@@ -178,11 +178,14 @@ async function captureSmokeEvidence(
       `(() => {
         const book = [...document.querySelectorAll('.book-btn')].find((b) => b.title === ${JSON.stringify(sel.book)})
         book && book.click()
-        const chapter = [...document.querySelectorAll('.chapter-btn')].find((b) => b.textContent === ${JSON.stringify(String(sel.chapter))})
+        const dlg = document.querySelector('.cascade-dialog')
+        const chapter = dlg && [...dlg.querySelectorAll('.cascade-chapter')].find((b) => b.textContent === ${JSON.stringify(String(sel.chapter))})
         chapter && chapter.click()
-        const verse = [...document.querySelectorAll('.verse-btn')].find((b) => b.dataset.verse === ${JSON.stringify(String(sel.verse))})
-        verse && verse.click()
-        return true
+        const from = dlg && [...dlg.querySelectorAll('.cascade-verse[data-kind="from"]')].find((b) => b.textContent === ${JSON.stringify(String(sel.verse))})
+        from && from.click()
+        const to = dlg && [...dlg.querySelectorAll('.cascade-verse[data-kind="to"]')].find((b) => b.textContent === ${JSON.stringify(String(sel.verse))})
+        to && to.click()
+        return Boolean(to)
       })()`,
     )
     await logStage(projection)
