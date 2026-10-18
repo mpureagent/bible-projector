@@ -38,6 +38,18 @@ export interface ProjectionTheme {
   currentColor: string
 }
 
+// 主题中文显示名（R5 表；T7-style 扩到 8 套后 token 一并补齐）
+export const THEME_LABELS: Record<string, string> = {
+  ink: '墨金',
+  ivory: '米白',
+  ocean: '深蓝',
+  parchment: '羊皮纸',
+  forest: '深墨绿',
+  charcoal: '炭灰金',
+  contrast: '雾白高对比',
+  wine: '酒红金',
+}
+
 export const PROJECTION_THEMES: Record<string, ProjectionTheme> = {
   ink: { background: '#101418', color: '#E8C87A', verseNumber: '#8A7440', currentColor: '#FFE9B0' },
   ivory: { background: '#F5F1E8', color: '#2A2622', verseNumber: '#8C8375', currentColor: '#8C5A2B' },

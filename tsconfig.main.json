@@ -12,5 +12,5 @@
     "rootDir": "src"
   },
   "include": ["src/main/**/*.ts", "src/shared/**/*.ts"],
-  "exclude": ["src/shared/font-dom.ts"]
+  "exclude": ["src/shared/font-dom.ts", "src/shared/passage.ts"]
 }

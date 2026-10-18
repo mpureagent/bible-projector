@@ -27,12 +27,20 @@ describe('T3-grid 书卷网格（真实 66 卷数据）', () => {
     expect(root.querySelectorAll('.book-btn')).toHaveLength(27)
   })
 
-  it('按钮显示简称（首卷为「创」），并带全名 title 便于识别', () => {
+  it('每卷一行：全名为主（首卷「创世记」），简称为次（「创」），title 为全名（R3/R6）', () => {
     const { root, view } = mount()
     view.setTestament(0)
     const first = root.querySelector<HTMLElement>('.book-btn')
-    expect(first?.textContent?.trim()).toBe('创')
+    expect(first?.querySelector('.book-name')?.textContent).toBe('创世记')
+    expect(first?.querySelector('.book-short')?.textContent).toBe('创')
     expect(first?.title).toBe('创世记')
+  })
+
+  it('列表容器为纵向单列（.book-list），每行一个书卷按钮（R6 无横滚）', () => {
+    const { root, view } = mount()
+    view.setTestament(0)
+    expect(root.querySelector('.book-list')).toBeTruthy()
+    expect(root.querySelector('.book-grid')).toBeNull()
   })
 
   it('Tab 切换后网格内容变化：旧约含创世记/不含马可福音，新约反之', () => {
@@ -68,10 +76,10 @@ describe('T3-grid 书卷网格（真实 66 卷数据）', () => {
     const tabs = [...root.querySelectorAll<HTMLElement>('.tab-btn')]
     tabs[2]!.click()
     expect(onModeChange).toHaveBeenLastCalledWith('history')
-    expect(root.querySelector<HTMLElement>('.book-grid')!.hidden).toBe(true)
+    expect(root.querySelector<HTMLElement>('.book-list')!.hidden).toBe(true)
     tabs[0]!.click()
     expect(onModeChange).toHaveBeenLastCalledWith('books')
-    expect(root.querySelector<HTMLElement>('.book-grid')!.hidden).toBe(false)
+    expect(root.querySelector<HTMLElement>('.book-list')!.hidden).toBe(false)
     expect(root.querySelectorAll('.book-btn')).toHaveLength(39)
   })
 

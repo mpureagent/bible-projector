@@ -8,6 +8,22 @@ export interface SearchViewOptions {
   onBook(sn: number): void
 }
 
+// R6：命中前缀高亮——把 query 在文本中首次（不区分大小写）出现处包进 <mark>。
+// 前缀（index 0）优先；此处用 indexOf 兼顾拼音多段与简称中的命中。
+export function appendHighlighted(container: HTMLElement, text: string, query: string): void {
+  const q = query.trim()
+  const at = q === '' ? -1 : text.toLowerCase().indexOf(q.toLowerCase())
+  if (at < 0) {
+    container.textContent = text
+    return
+  }
+  container.append(
+    document.createTextNode(text.slice(0, at)),
+    Object.assign(document.createElement('mark'), { className: 'search-hl', textContent: text.slice(at, at + q.length) }),
+    document.createTextNode(text.slice(at + q.length)),
+  )
+}
+
 export class SearchView {
   private readonly input: HTMLInputElement
   private readonly dropdown: HTMLElement
@@ -45,10 +61,10 @@ export class SearchView {
       btn.dataset.name = book.name
       const name = document.createElement('span')
       name.className = 'search-item-name'
-      name.textContent = book.name
+      appendHighlighted(name, book.name, query)
       const meta = document.createElement('span')
       meta.className = 'search-item-meta'
-      meta.textContent = book.py.join(' / ')
+      appendHighlighted(meta, book.py.join(' / '), query)
       btn.append(name, meta)
       btn.addEventListener('click', () => {
         this.options.onBook(book.sn)

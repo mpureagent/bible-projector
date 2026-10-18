@@ -1,16 +1,17 @@
-import type { AppState, ThemeName } from '../shared/types'
+import type { AppState } from '../shared/types'
 import { bookBySn } from '../shared/bible'
+import { passageRangeText } from '../shared/passage'
 import { applyFontStack } from '../shared/font-dom'
 import { createKeyboardController } from './keyboard'
 import { BooksView } from './books-view'
 import { CascadeView } from './cascade-view'
 import { HistoryView } from './history-view'
+import { PreviewView } from './preview-view'
 import { SearchView } from './search-view'
 import { StyleView } from './style-view'
+import { ThemePalette } from './theme-palette'
 
 applyFontStack(document)
-
-const THEMES: ThemeName[] = ['ink', 'ivory', 'ocean']
 
 let current: AppState | null = null
 
@@ -18,8 +19,7 @@ const selectionLabel = (): string => {
   const sel = current?.selection
   if (!sel) return '未选经文'
   const name = bookBySn(sel.sn)?.name ?? `卷 ${sel.sn}`
-  const range = sel.verses.from === sel.verses.to ? `${sel.verses.from}` : `${sel.verses.from}-${sel.verses.to}`
-  return `${name} ${sel.chapter}:${range}`
+  return `${name} ${sel.chapter}:${passageRangeText(sel.verses.from, sel.verses.to)}`
 }
 
 const historyView = new HistoryView(document.getElementById('history-panel')!, {
@@ -31,28 +31,31 @@ const historyView = new HistoryView(document.getElementById('history-panel')!, {
 const refreshHistory = (): void => {
   void window.bridge.getHistory().then((entries) => historyView.render(entries))
 }
+
 // T7-cascade（R2）：四列级联弹窗——书卷列表/搜索点选唤起，选完 dispatch select
 const cascade = new CascadeView(document.getElementById('cascade-root')!, {
   onSelect: (selection) => {
     void window.bridge.dispatch({ type: 'select', selection })
   },
 })
+
+// T7-layout（R3）：左栏 = 搜索 → Tab → 书卷列表（每卷一行全名）；历史 Tab 顶替列表位
 new BooksView(document.getElementById('books-panel')!, {
   onBook: (sn) => cascade.openWithBook(sn),
-  onModeChange: (mode) => {
-    historyView.setVisible(mode === 'history')
-    if (mode === 'history') refreshHistory()
-  },
+  onModeChange: (mode) => historyView.setVisible(mode === 'history'),
 })
-// 历史 Tab 顶替书卷网格位：把 tab-bar 挪到搜索框之后、历史列表之前
-{
-  const panel = document.getElementById('books-panel')!
-  const tabBar = panel.querySelector('.tab-bar')
-  const historyPanel = document.getElementById('history-panel')
-  if (tabBar && historyPanel) panel.insertBefore(tabBar, historyPanel)
-}
 new SearchView(document.getElementById('search-panel')!, {
   onBook: (sn) => cascade.openWithBook(sn),
+})
+
+// T7-layout（R3/R5）：预览与投影同源渲染；主题色板与样式抽屉即时同步
+const preview = new PreviewView(document.getElementById('preview-panel')!, {
+  copyText: async (text) => {
+    await navigator.clipboard?.writeText(text)
+  },
+})
+const palette = new ThemePalette(document.getElementById('theme-palette')!, {
+  onSelect: (theme) => void window.bridge.dispatch({ type: 'style', patch: { theme } }),
 })
 
 window.bridge.onState(render)
@@ -64,23 +67,13 @@ window.bridge.onBanner(({ text }) => {
   el.classList.toggle('visible', text !== null && text !== '')
 })
 
-// T4-keys：§6.3 快捷键全集 + R1：显示器下拉删除（自动指派/热插拔兜底全在主进程）
-
 function render(state: AppState): void {
   current = state
-  const set = (id: string, text: string) => {
-    const el = document.getElementById(id)
-    if (el) el.textContent = text
-  }
-  set('st-selection', state.selection ? `${state.selection.sn} ${state.selection.chapter}:${state.selection.verses.from}-${state.selection.verses.to}` : 'null')
-  set('st-projecting', String(state.projecting))
   const btnProject = document.getElementById('btn-project')
   if (btnProject) {
     btnProject.textContent = state.projecting ? '取消投屏' : '投屏'
     btnProject.classList.toggle('active', state.projecting)
   }
-  set('st-style', `${state.style.theme} / ${state.style.fontSize}px`)
-  set('st-display', String(state.display))
   // 「当前选区」标签（未选置灰，R2/R3）
   const btnSelection = document.getElementById('btn-selection') as HTMLButtonElement | null
   if (btnSelection) {
@@ -88,6 +81,10 @@ function render(state: AppState): void {
     btnSelection.classList.toggle('empty', state.selection === null)
     btnSelection.disabled = state.selection === null
   }
+  const btnCopy = document.getElementById('btn-copy') as HTMLButtonElement | null
+  if (btnCopy) btnCopy.disabled = state.selection === null
+  palette.renderState(state.style.theme)
+  preview.render(state)
   styleView.renderState(state.style)
   refreshHistory()
 }
@@ -102,12 +99,11 @@ on('btn-selection', () => {
   cascade.open(current?.selection ?? null)
 })
 on('btn-project', () => void window.bridge.dispatch({ type: 'projecting', value: !(current?.projecting ?? false) }))
+on('btn-copy', () => void preview.copyCurrent())
 on('btn-font-up', () => void window.bridge.dispatch({ type: 'style', patch: { fontSize: (current?.style.fontSize ?? 72) + 12 } }))
-on('btn-font-down', () => void window.bridge.dispatch({ type: 'style', patch: { fontSize: Math.max(24, (current?.style.fontSize ?? 72) - 12) } }))
-on('btn-theme', () => {
-  const next = THEMES[(THEMES.indexOf(current?.style.theme ?? 'ink') + 1) % THEMES.length]
-  void window.bridge.dispatch({ type: 'style', patch: { theme: next } })
-})
+on('btn-font-down', () =>
+  void window.bridge.dispatch({ type: 'style', patch: { fontSize: Math.max(8, (current?.style.fontSize ?? 72) - 12) } }),
+)
 
 // T4-style：样式抽屉（齿轮按钮 / S 键唤出），全部变更即时 dispatch → 广播投影窗
 const styleViewRoot = document.getElementById('style-drawer')!
