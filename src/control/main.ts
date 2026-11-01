@@ -6,6 +6,7 @@ import { createKeyboardController } from './keyboard'
 import { BooksView } from './books-view'
 import { CascadeView } from './cascade-view'
 import { HistoryView } from './history-view'
+import { ControlLayout, NARROW_MEDIA_QUERY } from './layout-controller'
 import { PreviewView } from './preview-view'
 import { SearchView } from './search-view'
 import { StyleView } from './style-view'
@@ -22,9 +23,23 @@ const selectionLabel = (): string => {
   return `${name} ${sel.chapter}:${passageRangeText(sel.verses.from, sel.verses.to)}`
 }
 
+// W2：窄屏单栏两态（list/detail），返回按钮与左右栏都用 hidden 切换
+const narrowMedia = window.matchMedia(NARROW_MEDIA_QUERY)
+const layout = new ControlLayout(
+  {
+    body: document.body,
+    left: document.getElementById('left-panel')!,
+    right: document.getElementById('right-panel')!,
+    back: document.getElementById('btn-back')!,
+  },
+  narrowMedia,
+)
+document.getElementById('btn-back')!.addEventListener('click', () => layout.backToList())
+
 const historyView = new HistoryView(document.getElementById('history-panel')!, {
   onSelect: (selection) => {
-    // 历史条目点击 = 直接回填选区上屏（R2）
+    // 历史条目点击 = 直接回填选区上屏（R2）；窄屏立即进入 detail
+    layout.showDetail()
     void window.bridge.dispatch({ type: 'select', selection })
   },
 })
@@ -35,9 +50,14 @@ const refreshHistory = (): void => {
 // T7-cascade（R2）：四列级联弹窗——书卷列表/搜索点选唤起，选完 dispatch select
 const cascade = new CascadeView(document.getElementById('cascade-root')!, {
   onSelect: (selection) => {
+    // 窄屏选中即进入 detail 看预览
+    layout.showDetail()
     void window.bridge.dispatch({ type: 'select', selection })
   },
+  narrow: narrowMedia.matches,
 })
+// W2：横竖屏切换时级联弹窗按当前进度落到对应步骤
+narrowMedia.addEventListener('change', (event) => cascade.setNarrow(event.matches))
 
 // T7-layout（R3）：左栏 = 搜索 → Tab → 书卷列表（每卷一行全名）；历史 Tab 顶替列表位
 new BooksView(document.getElementById('books-panel')!, {
@@ -69,6 +89,8 @@ window.bridge.onBanner(({ text }) => {
 
 function render(state: AppState): void {
   current = state
+  // W2：先同步窄屏视图，选中换区时预览栏已可见再渲染
+  layout.handleState(state)
   const btnProject = document.getElementById('btn-project')
   if (btnProject) {
     btnProject.textContent = state.projecting ? '取消投屏' : '投屏'

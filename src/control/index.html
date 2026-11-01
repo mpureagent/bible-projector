@@ -6,6 +6,8 @@
     <title>圣言投屏 · 控制窗</title>
     <style>
       :root { color-scheme: light; }
+      /* W2：hidden 属性统一生效（左右栏/返回/抽屉均靠 hidden 切换，元素留在 DOM） */
+      [hidden] { display: none !important; }
       body {
         margin: 0;
         font-family: "Noto Serif CJK SC", "Source Han Serif SC", serif;
@@ -30,8 +32,8 @@
         display: none;
       }
       #banner.visible { display: inline-block; }
-      /* R3：左栏选经 / 右栏操作条+预览 */
-      #layout { display: grid; grid-template-columns: 340px 1fr; gap: 14px; padding: 14px 18px; align-items: start; }
+      /* R3：左栏选经 / 右栏操作条+预览；W2：minmax(0,1fr) 防 min-content 撑破 */
+      #layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 14px; padding: 14px 18px; align-items: start; }
       #left-panel, #right-panel {
         border: 1px solid #E2DCCF;
         border-radius: 6px;
@@ -41,8 +43,13 @@
         /* R6：左栏不出现横向滚动，全名不截断可换行 */
         overflow-x: hidden;
         overflow-y: auto;
+        /* W2：网格子项允许收缩到列宽以下 */
+        min-width: 0;
+        box-sizing: border-box;
       }
       #right-panel { display: flex; flex-direction: column; gap: 10px; padding: 0; background: transparent; border: none; max-height: none; overflow: visible; }
+      /* W2：窄屏 detail 态的「‹ 返回列表」；桌面始终 hidden */
+      .back-btn { width: 100%; min-height: 44px; text-align: left; font-weight: 600; }
       .search-box { position: relative; }
       .search-input {
         width: 100%;
@@ -396,6 +403,66 @@
         font-weight: 600;
       }
       .cascade-hint { font-size: 13px; color: #8C8375; padding: 8px 4px; }
+      /* W2：≤900px 单栏两态 + 级联分步 + 底部样式抽屉；桌面 (>900px) 完全不受影响 */
+      @media (max-width: 900px) {
+        header { flex-wrap: wrap; gap: 6px; padding: 8px 12px; }
+        h1 { font-size: 15px; min-width: 0; overflow-wrap: anywhere; }
+        #banner {
+          max-width: 100%;
+          box-sizing: border-box;
+          font-size: 12px;
+          padding: 4px 8px;
+          white-space: normal;
+          overflow-wrap: anywhere;
+        }
+        #layout { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 10px 12px; }
+        #left-panel, #right-panel { width: 100%; max-width: 100%; }
+        #left-panel { max-height: none; }
+        #right-panel { min-height: 0; }
+        #op-bar { gap: 6px; padding: 6px 8px; }
+        .back-btn { width: 100%; text-align: left; }
+        .project-btn { min-width: 96px; }
+        .selection-label { flex: 1 1 120px; min-width: 0; max-width: 100%; }
+        .theme-palette { flex-wrap: wrap; }
+        #preview-panel { min-height: 240px; max-height: 68vh; }
+        #preview-panel .passage { box-sizing: border-box; }
+        #preview-panel .vtext, #preview-panel .passage-title { overflow-wrap: anywhere; word-break: break-word; }
+        .search-item-name, .search-item-meta { min-width: 0; overflow-wrap: anywhere; }
+        /* 所有可点元素触控区 ≥44px */
+        button, .search-input, .search-item, .history-item, .tab-btn, .book-btn,
+        .cascade-book, .cascade-chapter, .cascade-verse, .cascade-step-back,
+        .cascade-close, .style-close, .style-field select, .style-custom-input,
+        .theme-swatch, .op-small, .op-icon, .back-btn { min-height: 44px; }
+        .theme-swatch { width: 44px; height: 44px; }
+        .style-close, .cascade-close { min-width: 44px; }
+        .font-steps button { min-width: 44px; }
+        /* 级联分步：书 → 章 → 节范围（起/止双列），不横向滚动 */
+        .cascade-dialog { top: 4%; width: calc(100vw - 24px); max-height: 88vh; }
+        .cascade-head { gap: 8px; padding: 8px 10px; }
+        .cascade-title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+        .cascade-cols { grid-template-columns: minmax(0, 1fr); padding: 10px; }
+        .cascade-cols.step-verses { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .cascade-col { min-width: 0; min-height: 0; max-height: 60vh; }
+        /* 样式面板改底部抽屉：贴底、最高 70vh、可滚动 */
+        .style-panel {
+          top: auto;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          width: auto;
+          max-height: 70vh;
+          box-sizing: border-box;
+          padding: 0 14px calc(16px + env(safe-area-inset-bottom));
+          border-left: none;
+          border-top: 1px solid #C9C0AD;
+          border-radius: 12px 12px 0 0;
+          box-shadow: 0 -4px 12px rgba(38, 34, 28, 0.12);
+        }
+        .style-head { padding: 10px 0; }
+        .style-field select { width: min(160px, 46vw); }
+        .style-field input[type="range"] { width: min(160px, 46vw); }
+        .style-field input[type="color"] { width: 56px; height: 44px; }
+      }
     </style>
   </head>
   <body>
@@ -410,6 +477,7 @@
         <div id="history-panel"></div>
       </div>
       <div id="right-panel">
+        <button id="btn-back" class="back-btn" type="button" hidden>‹ 返回列表</button>
         <div id="op-bar">
           <button id="btn-project" class="project-btn" title="投屏 / 取消投屏（P）">投屏</button>
           <button id="btn-selection" class="selection-label" title="点击改选经文范围">未选经文</button>

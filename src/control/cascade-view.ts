@@ -5,9 +5,19 @@ import type { Selection } from '../shared/types'
 // 点列刷新其右侧列；起始>结束钳制（结束<起始时抬到起始）；选完自动关窗回调 onSelect。
 // 三途径关闭：点遮罩 / ✕ / 选完。回填：open(selection) 唤起并预置四列。
 // 不跨章：数据结构 (sn, chapter, from, to)，章切换即清空起止。
+// W2：≤900px 改分步（书 → 章 → 节范围），只显示当前步骤，禁止横向滚动；桌面四列不变。
 
 export interface CascadeViewOptions {
   onSelect(selection: Selection): void
+  narrow?: boolean
+}
+
+type CascadeStep = 'books' | 'chapters' | 'verses'
+
+const STEP_LABELS: Record<CascadeStep, string> = {
+  books: '选择书卷',
+  chapters: '选择章',
+  verses: '选择节范围',
 }
 
 export class CascadeView {
@@ -16,7 +26,12 @@ export class CascadeView {
   private readonly mask: HTMLElement
   private readonly dialog: HTMLElement
   private readonly closeBtn: HTMLElement
+  private readonly title: HTMLElement
+  private readonly stepBack: HTMLElement
+  private readonly colsRow: HTMLElement
   private readonly cols: Record<'books' | 'chapters' | 'from' | 'to', HTMLElement>
+  private narrow: boolean
+  private step: CascadeStep = 'books'
   private sn: number | null = null
   private chapter: number | null = null
   private from: number | null = null
@@ -24,6 +39,7 @@ export class CascadeView {
 
   constructor(root: HTMLElement, options: CascadeViewOptions) {
     this.options = options
+    this.narrow = options.narrow ?? false
 
     const overlay = document.createElement('div')
     overlay.className = 'cascade-overlay'
@@ -40,12 +56,18 @@ export class CascadeView {
     const title = document.createElement('span')
     title.className = 'cascade-title'
     title.textContent = '选经（书 · 章 · 起始节 · 结束节）'
+    const stepBack = document.createElement('button')
+    stepBack.type = 'button'
+    stepBack.className = 'cascade-step-back'
+    stepBack.textContent = '‹ 上一步'
+    stepBack.hidden = true
+    stepBack.addEventListener('click', () => this.stepBackward())
     const closeBtn = document.createElement('button')
     closeBtn.type = 'button'
     closeBtn.className = 'cascade-close'
     closeBtn.textContent = '×'
     closeBtn.addEventListener('click', () => this.close())
-    head.append(title, closeBtn)
+    head.append(title, stepBack, closeBtn)
 
     const colsRow = document.createElement('div')
     colsRow.className = 'cascade-cols'
@@ -64,6 +86,9 @@ export class CascadeView {
     this.mask = mask
     this.dialog = dialog
     this.closeBtn = closeBtn
+    this.title = title
+    this.stepBack = stepBack
+    this.colsRow = colsRow
     this.cols = cols
     this.renderColumns()
   }
@@ -78,6 +103,9 @@ export class CascadeView {
       this.chapter = prefill.chapter
       this.from = prefill.verses.from
       this.to = prefill.verses.to
+      if (this.narrow) this.step = 'verses'
+    } else if (this.narrow) {
+      this.step = 'books'
     }
     this.overlay.hidden = false
     this.renderColumns()
@@ -88,12 +116,27 @@ export class CascadeView {
     this.chapter = null
     this.from = null
     this.to = null
+    if (this.narrow) this.step = 'chapters'
     this.overlay.hidden = false
     this.renderColumns()
   }
 
   close(): void {
     this.overlay.hidden = true
+  }
+
+  // W2：运行时跨断点（横竖屏切换）按当前进度落到对应步骤
+  setNarrow(narrow: boolean): void {
+    if (this.narrow === narrow) return
+    this.narrow = narrow
+    this.step = narrow ? this.stepForProgress() : 'books'
+    this.renderColumns()
+  }
+
+  private stepForProgress(): CascadeStep {
+    if (this.sn === null) return 'books'
+    if (this.chapter === null) return 'chapters'
+    return 'verses'
   }
 
   getSelection(): Selection | null {
@@ -120,6 +163,7 @@ export class CascadeView {
       this.from = null
       this.to = null
     }
+    if (this.narrow) this.step = 'chapters'
     this.renderColumns()
   }
 
@@ -127,6 +171,7 @@ export class CascadeView {
     this.chapter = chapter
     this.from = null
     this.to = null
+    if (this.narrow) this.step = 'verses'
     this.renderColumns()
   }
 
@@ -152,6 +197,38 @@ export class CascadeView {
     this.renderChapterColumn()
     this.renderVerseColumn('from')
     this.renderVerseColumn('to')
+    this.applyStep()
+  }
+
+  // W2：窄屏分步视图——只显示当前步骤（节范围为起/止双列），桌面四列全显
+  private applyStep(): void {
+    const narrow = this.narrow
+    const step = narrow ? this.step : null
+    this.dialog.classList.toggle('narrow', narrow)
+    this.colsRow.classList.toggle('step-verses', step === 'verses')
+    this.cols.books.hidden = step !== null && step !== 'books'
+    this.cols.chapters.hidden = step !== null && step !== 'chapters'
+    this.cols.from.hidden = step !== null && step !== 'verses'
+    this.cols.to.hidden = step !== null && step !== 'verses'
+    this.stepBack.hidden = !(narrow && this.step !== 'books')
+    this.title.textContent = narrow
+      ? `选经 · ${STEP_LABELS[this.step]}`
+      : '选经（书 · 章 · 起始节 · 结束节）'
+  }
+
+  private stepBackward(): void {
+    if (!this.narrow) return
+    if (this.step === 'verses') {
+      this.step = 'chapters'
+      this.from = null
+      this.to = null
+    } else if (this.step === 'chapters') {
+      this.step = 'books'
+      this.chapter = null
+      this.from = null
+      this.to = null
+    }
+    this.renderColumns()
   }
 
   private renderBookColumn(): void {
