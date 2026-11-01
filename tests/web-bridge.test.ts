@@ -49,12 +49,15 @@ function fakeFetch(payload: unknown): { fetcher: (url: string, init?: RequestIni
   return { fetcher, calls }
 }
 
-function makeBridge(payload: unknown = {}) {
+function makeBridge(payload: unknown = {}, extra: { sseStallMs?: number; pollIntervalMs?: number } = {}) {
   FakeEventSource.instances = []
   const { fetcher, calls } = fakeFetch(payload)
   const bridge = createWebBridge({
     fetch: fetcher,
     createEventSource: (url) => new FakeEventSource(url),
+    // 默认给足时间，避免无关用例被看门狗干扰；降级用例显式覆盖
+    sseStallMs: 60_000,
+    ...extra,
   })
   return { bridge, calls, source: FakeEventSource.instances[0]! }
 }
@@ -175,5 +178,62 @@ describe('W1 Web 桥接适配器', () => {
       createEventSource: (url) => new FakeEventSource(url),
     })
     await expect(bridge.dispatch({ type: 'projecting', value: true })).rejects.toThrow(/500/)
+  })
+})
+
+// W2 修复：cloudflared 隧道会缓冲 SSE——连接建立、不报错，但事件永不到达。
+// 若不降级，界面会「状态正确但永不刷新」，且无任何报错可循。
+describe('W2 SSE 卡死时的轮询降级', () => {
+  it('SSE 迟迟无事件 → 自动降级轮询并推送状态变化', async () => {
+    vi.useFakeTimers()
+    try {
+      const { bridge, calls, source } = makeBridge(state, { sseStallMs: 100, pollIntervalMs: 50 })
+      const spy = vi.fn()
+      bridge.onState(spy)
+
+      // 看门狗到期前不应有任何轮询请求
+      expect(calls.filter((c) => c.url.endsWith('/api/state'))).toHaveLength(0)
+
+      await vi.advanceTimersByTimeAsync(120)
+      // 降级后必须关掉 SSE，避免半死连接占着
+      expect(source.closed).toBe(true)
+
+      await vi.advanceTimersByTimeAsync(60)
+      const stateCalls = calls.filter((c) => c.url.endsWith('/api/state'))
+      expect(stateCalls.length).toBeGreaterThan(0)
+      expect(spy).toHaveBeenCalled()
+      expect(spy.mock.calls[0]![0]).toEqual(state)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('轮询模式下状态未变不重复回调（与 SSE 通道去重）', async () => {
+    vi.useFakeTimers()
+    try {
+      const { bridge } = makeBridge(state, { sseStallMs: 10, pollIntervalMs: 20 })
+      const spy = vi.fn()
+      bridge.onState(spy)
+      await vi.advanceTimersByTimeAsync(200)
+      // fake fetch 永远返回同一 state，去重后只应回调一次
+      expect(spy).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('SSE 正常收到事件时不启动轮询', async () => {
+    vi.useFakeTimers()
+    try {
+      const { bridge, calls, source } = makeBridge(state, { sseStallMs: 100, pollIntervalMs: 50 })
+      bridge.onState(() => {})
+      // 看门狗到期前来了事件
+      source.emit('state', state)
+      await vi.advanceTimersByTimeAsync(300)
+      expect(source.closed).toBe(false)
+      expect(calls.filter((c) => c.url.endsWith('/api/state'))).toHaveLength(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
