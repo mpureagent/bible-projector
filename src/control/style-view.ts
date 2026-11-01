@@ -2,6 +2,13 @@ import { ALIGNS, FONT_CHOICES, TEXTURES, validateBackgroundImage } from '../shar
 import { PROJECTION_THEMES, PROJECTION_THEME_PRESETS, THEME_LABELS } from '../shared/themes'
 import type { ProjectionStyle, ThemeName } from '../shared/types'
 
+// W1：宿主能力声明（缺省=Electron 全支持；Web 宿主在 web-boot 内显式关闭本地图片背景）
+declare global {
+  interface Window {
+    hostCapabilities?: { customBackgroundImage?: boolean }
+  }
+}
+
 // T4-style/T7-style（R5/R8c）：样式抽屉——右侧滑入，✕ + 遮罩关闭。
 // 8 主题缩略图｜字体四选｜字号滑块+A±｜行距/字距｜对齐左/中｜边距≥8%｜节号显隐｜
 // 背景三选一（跟随主题/内置纹理 3/自定义图片/纯色，互斥）｜重置为当前主题。
@@ -76,7 +83,7 @@ export class StyleView {
         this.colorField('当前节高亮', 'currentColor'),
         this.resetThemeButton(),
       ),
-      this.section('背景', this.backgroundModeSelect(), this.textureSelectEl(), customInput, this.colorInputEl(), error),
+      this.section('背景', ...this.backgroundFields(customInput, error)),
       this.section('显隐', this.checkboxField('隐藏节号', 'hideVerseNumbers'), this.checkboxField('隐藏书卷标题', 'hideTitle')),
     )
 
@@ -252,15 +259,28 @@ export class StyleView {
     return btn
   }
 
+  // W1：自定义图片依赖本地绝对路径，Web 宿主不支持；能力由宿主声明（Electron 缺省=支持）
+  private supportsCustomImage(): boolean {
+    return window.hostCapabilities?.customBackgroundImage !== false
+  }
+
+  private backgroundFields(customInput: HTMLInputElement, error: HTMLElement): HTMLElement[] {
+    const fields: HTMLElement[] = [this.backgroundModeSelect(), this.textureSelectEl()]
+    if (this.supportsCustomImage()) fields.push(customInput)
+    fields.push(this.colorInputEl(), error)
+    return fields
+  }
+
   private backgroundModeSelect(): HTMLElement {
     const select = document.createElement('select')
     select.dataset.field = 'backgroundMode'
-    for (const [value, label] of [
+    const modes: Array<[ProjectionStyle['backgroundMode'], string]> = [
       ['theme', '跟随主题'],
       ['texture', '内置纹理'],
-      ['image', '自定义图片'],
       ['color', '纯色'],
-    ] as const) {
+    ]
+    if (this.supportsCustomImage()) modes.splice(2, 0, ['image', '自定义图片'])
+    for (const [value, label] of modes) {
       const option = document.createElement('option')
       option.value = value
       option.textContent = label

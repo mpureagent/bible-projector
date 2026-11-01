@@ -3,6 +3,7 @@ dist/
 out/
 release/
 generated/
+.web-userdata/
 .artifacts/
 *.log
 .DS_Store
