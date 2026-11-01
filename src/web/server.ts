@@ -1,6 +1,7 @@
 import { createReadStream, statSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { basename, extname, resolve, sep } from 'node:path'
+import { createGzip } from 'node:zlib'
 import type { StoreLike } from '../main/ipc'
 import type { ScrollDirection } from '../shared/types'
 import { isAction } from '../shared/types'
@@ -28,6 +29,11 @@ const MIME_TYPES: Record<string, string> = {
 }
 
 const HASHED_ASSET = /[-.][A-Za-z0-9_-]{8,}\.[A-Za-z0-9]+$/
+
+// gzip 只压文本类；woff2/png/jpg 本身已压缩，再压反而更大且白耗 CPU
+const COMPRESSIBLE_EXT = new Set(['.html', '.js', '.mjs', '.css', '.json', '.map', '.svg'])
+// 小于此值的响应压缩收益抵不过头部开销
+const COMPRESSIBLE_MIN_BYTES = 1024
 
 export interface WebServerOptions {
   store: StoreLike
@@ -107,6 +113,11 @@ function cacheControl(pathname: string): string {
   // 仅 Vite 的 /assets/ 哈希产物长缓存；fonts/textures 等公共资源保持 no-cache
   if (pathname.startsWith('/assets/') && HASHED_ASSET.test(basename(pathname))) {
     return 'public, max-age=31536000, immutable'
+  }
+  // 字体是随包资源且体量大（宋体子集约 578KB），no-cache 会让每次访问都重下。
+  // 文件名无 hash，故用 7 天而非 immutable：字体若更新，靠版本发布周期自然过期。
+  if (pathname.startsWith('/fonts/') && /\.woff2?$/i.test(pathname)) {
+    return 'public, max-age=604800'
   }
   return 'no-cache'
 }
@@ -222,6 +233,37 @@ export function createWebServer(options: WebServerOptions): WebServerHandle {
       return
     }
     const type = MIME_TYPES[extname(filePath).toLowerCase()] ?? 'application/octet-stream'
+    // 隧道带宽下 3.3MB 经文 bundle 要 28s，gzip 压到 1.1MB。
+    // 用流式 gzip 而非 gzipSync：同步压缩 3.3MB 会阻塞事件循环，卡住 SSE 推送。
+    const ext = extname(filePath).toLowerCase()
+    const acceptEncoding = req.headers['accept-encoding']
+    const wantsGzip =
+      COMPRESSIBLE_EXT.has(ext) &&
+      stat.size > COMPRESSIBLE_MIN_BYTES &&
+      /\bgzip\b/.test(Array.isArray(acceptEncoding) ? acceptEncoding.join(',') : (acceptEncoding ?? ''))
+    if (wantsGzip) {
+      res.writeHead(200, {
+        'Content-Type': type,
+        'Content-Encoding': 'gzip',
+        Vary: 'Accept-Encoding',
+        'Cache-Control': cacheControl(relative),
+      })
+      if (req.method === 'HEAD') {
+        res.end()
+        return
+      }
+      const gzipStream = createGzip({ level: 6 })
+      createReadStream(filePath)
+        .on('error', () => {
+          if (!res.writableEnded) res.destroy()
+        })
+        .pipe(gzipStream)
+        .on('error', () => {
+          if (!res.writableEnded) res.destroy()
+        })
+        .pipe(res)
+      return
+    }
     res.writeHead(200, {
       'Content-Type': type,
       'Content-Length': stat.size,

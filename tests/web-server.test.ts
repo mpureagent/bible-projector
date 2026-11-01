@@ -1,7 +1,9 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { request as httpRequest } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { gunzipSync } from 'node:zlib'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { Persistence } from '../src/main/store'
 import { AppStateStore } from '../src/main/store'
@@ -25,6 +27,32 @@ interface SseEvent {
 interface SseStream {
   next(): Promise<SseEvent>
   close(): void
+}
+
+interface RawResponse {
+  status: number
+  headers: Record<string, string | undefined>
+  body: Buffer
+}
+
+// fetch/undici 会自动解压且丢弃原始字节，验证 gzip 必须用裸 http
+function rawGet(target: string, headers: Record<string, string>): Promise<RawResponse> {
+  return new Promise((resolve, reject) => {
+    const req = httpRequest(target, { headers }, (res) => {
+      const chunks: Buffer[] = []
+      res.on('data', (chunk: Buffer) => chunks.push(chunk))
+      res.on('end', () =>
+        resolve({
+          status: res.statusCode ?? 0,
+          headers: res.headers as Record<string, string | undefined>,
+          body: Buffer.concat(chunks),
+        }),
+      )
+      res.on('error', reject)
+    })
+    req.on('error', reject)
+    req.end()
+  })
 }
 
 function openSse(base: string): Promise<SseStream> {
@@ -284,7 +312,44 @@ describe('W1 Web 宿主服务端', () => {
 
     const font = await fetch(`${base}/fonts/bible-serif-sc.woff2`)
     expect(font.headers.get('content-type')).toBe('font/woff2')
-    expect(font.headers.get('cache-control')).toBe('no-cache')
+    // 字体体量大且随包不变：若 no-cache，每次访问都要重下 578KB
+    expect(font.headers.get('cache-control')).toBe('public, max-age=604800')
+  })
+
+  it('文本资源按 Accept-Encoding 返回 gzip，且解压后内容一致', async () => {
+    // 大文件才会压缩（阈值 1024 字节）
+    const body = 'console.log("bible");'.repeat(200)
+    writeFileSync(join(staticRoot!, 'assets', 'scroll-abcdef12.js'), body)
+
+    // 必须用原始 http 请求：fetch/undici 会自动解压，拿不到压缩字节
+    const raw = await rawGet(`${base}/assets/scroll-abcdef12.js`, { 'accept-encoding': 'gzip' })
+    expect(raw.status).toBe(200)
+    expect(raw.headers['content-encoding']).toBe('gzip')
+    expect(raw.headers.vary).toBe('Accept-Encoding')
+    expect(raw.headers['content-length']).toBeUndefined()
+    // gzip 魔数 1f 8b，确认真的压过
+    expect(raw.body[0]).toBe(0x1f)
+    expect(raw.body[1]).toBe(0x8b)
+    expect(raw.body.length).toBeLessThan(Buffer.byteLength(body))
+    expect(gunzipSync(raw.body).toString('utf-8')).toBe(body)
+
+    // 不支持 gzip 的客户端拿到原文
+    const plain = await rawGet(`${base}/assets/scroll-abcdef12.js`, { 'accept-encoding': 'identity' })
+    expect(plain.headers['content-encoding']).toBeUndefined()
+    expect(plain.headers['content-length']).toBe(String(Buffer.byteLength(body)))
+    expect(plain.body.toString('utf-8')).toBe(body)
+  })
+
+  it('小文件与已压缩格式不启用 gzip', async () => {
+    const small = await fetch(`${base}/assets/control-abcdef12.js`, {
+      headers: { 'accept-encoding': 'gzip' },
+    })
+    expect(small.headers.get('content-encoding')).toBeNull()
+
+    const font = await fetch(`${base}/fonts/bible-serif-sc.woff2`, {
+      headers: { 'accept-encoding': 'gzip' },
+    })
+    expect(font.headers.get('content-encoding')).toBeNull()
   })
 
   it('静态路径穿越被拒绝', async () => {

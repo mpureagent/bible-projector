@@ -14,6 +14,11 @@ import { ThemePalette } from './theme-palette'
 
 applyFontStack(document)
 
+// 启动遮罩：经文数据 3.3MB 打包在 bundle 里，慢网（如隧道）首屏要等十几秒。
+// 遮罩本身在 HTML 内联，不依赖 JS，因此能先于脚本渲染出来。
+// 延迟 250ms 才淡入，保证本地/Electron 秒开时用户完全看不到它。
+document.getElementById('boot-splash')?.remove()
+
 let current: AppState | null = null
 
 const selectionLabel = (): string => {

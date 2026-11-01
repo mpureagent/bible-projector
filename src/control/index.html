@@ -463,9 +463,49 @@
         .style-field input[type="range"] { width: min(160px, 46vw); }
         .style-field input[type="color"] { width: 56px; height: 44px; }
       }
+
+      /* 启动遮罩：经文数据 3.3MB 在 bundle 内，慢网首屏要等十几秒。
+         延迟 250ms 才淡入——本地与 Electron 秒开时用户完全看不到。 */
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #F7F4EE;
+        opacity: 0;
+        animation: splash-in 240ms ease 250ms forwards;
+      }
+      @keyframes splash-in {
+        to { opacity: 1; }
+      }
+      .splash-inner { text-align: center; }
+      .splash-title {
+        font-size: 20px;
+        letter-spacing: 6px;
+        color: #4A3F2E;
+        margin-bottom: 14px;
+      }
+      .splash-hint {
+        font-size: 13px;
+        letter-spacing: 1px;
+        color: #8A7A5E;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot-splash { animation-delay: 0s; }
+      }
     </style>
   </head>
   <body>
+    <!-- 启动遮罩
+         延迟 250ms 淡入，本地/Electron 秒开时用户看不到（见 main.ts 移除逻辑）。 -->
+    <div id="boot-splash">
+      <div class="splash-inner">
+        <div class="splash-title">圣言投屏</div>
+        <div class="splash-hint">正在加载经文数据…</div>
+      </div>
+    </div>
     <header>
       <h1>圣言投屏 · 控制窗</h1>
       <span id="banner"></span>
