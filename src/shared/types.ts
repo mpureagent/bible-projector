@@ -35,6 +35,8 @@ export interface ProjectionStyle {
   letterSpacing: number
   align: Align
   margin: number
+  // W3：true = 整段不点亮任何节（展示模式）。缺省按 false 处理
+  hideCurrent?: boolean
 }
 
 export interface VerseRange {
@@ -54,6 +56,8 @@ export interface AppState {
   display: number | null
   // T6/T7：投屏中。false=本地阅读模式（选经只更新控制窗，不广播投影窗）
   projecting: boolean
+  // W3：当前点亮节；与 selection（渲染范围）解耦。缺省（旧状态快照）= 按 selection.from 处理
+  currentVerse?: number | null
 }
 
 export type Action =
@@ -61,6 +65,13 @@ export type Action =
   | { type: 'style'; patch: Partial<ProjectionStyle> }
   | { type: 'display'; id: number }
   | { type: 'projecting'; value: boolean }
+
+// W3：当前节点亮动作。单独成类而非并入 Action：滚动时高频派发，
+// 且 Action 的既有消费方（历史/持久化）只关心选区与样式。
+export type HighlightAction = { type: 'highlight'; verse: number | null }
+
+// 状态中枢/桥接的完整动作契约
+export type AppAction = Action | HighlightAction
 
 export interface HistoryEntry {
   selection: Selection
@@ -79,16 +90,16 @@ export const IPC_CHANNELS = {
 
 export type ScrollDirection = 'up' | 'down'
 
-const ACTION_TYPES = new Set(['select', 'style', 'display', 'projecting'])
+const ACTION_TYPES = new Set(['select', 'style', 'display', 'projecting', 'highlight'])
 
-export function isAction(value: unknown): value is Action {
+export function isAction(value: unknown): value is AppAction {
   if (typeof value !== 'object' || value === null) return false
   const type = (value as { type?: unknown }).type
   return typeof type === 'string' && ACTION_TYPES.has(type)
 }
 
 export interface BridgeApi {
-  dispatch(action: Action): Promise<AppState>
+  dispatch(action: AppAction): Promise<AppState>
   getState(): Promise<AppState>
   getHistory(): Promise<HistoryEntry[]>
   onState(callback: (state: AppState) => void): () => void

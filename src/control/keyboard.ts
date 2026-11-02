@@ -9,6 +9,8 @@ import type { Action, AppState, ScrollDirection } from '../shared/types'
 export interface KeyboardControllerDeps {
   getState(): AppState | null
   dispatch(action: Action): void
+  // W3：↑↓ 高亮移动走独立通道（保持 dispatch 的既有无高亮契约）
+  highlight?(verse: number | null): void
   isDrawerOpen(): boolean
   closeDrawer(): void
   toggleDrawer(): void
@@ -33,7 +35,8 @@ export function createKeyboardController(deps: KeyboardControllerDeps): { dispos
     event.preventDefault()
     switch (intent.kind) {
       case 'action':
-        deps.dispatch(intent.action)
+        if (intent.action.type === 'highlight') deps.highlight?.(intent.action.verse)
+        else deps.dispatch(intent.action)
         break
       case 'toggle-drawer':
         deps.toggleDrawer()

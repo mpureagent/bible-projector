@@ -1,4 +1,4 @@
-import type { Action, AppState, HistoryEntry } from '../shared/types'
+import type { AppAction, AppState, HistoryEntry } from '../shared/types'
 import { IPC_CHANNELS, isAction } from '../shared/types'
 
 export interface IpcMainLike {
@@ -6,7 +6,7 @@ export interface IpcMainLike {
 }
 
 export interface StoreLike {
-  dispatch(action: Action): Readonly<AppState>
+  dispatch(action: AppAction): Readonly<AppState>
   getState(): Readonly<AppState>
   getHistory(): readonly HistoryEntry[]
 }

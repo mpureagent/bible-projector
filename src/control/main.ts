@@ -78,6 +78,7 @@ const preview = new PreviewView(document.getElementById('preview-panel')!, {
   copyText: async (text) => {
     await navigator.clipboard?.writeText(text)
   },
+  onHighlight: (verse) => void window.bridge.dispatch({ type: 'highlight', verse }),
 })
 const palette = new ThemePalette(document.getElementById('theme-palette')!, {
   onSelect: (theme) => void window.bridge.dispatch({ type: 'style', patch: { theme } }),
@@ -145,6 +146,11 @@ createKeyboardController({
   getState: () => current,
   dispatch: (action) => {
     void window.bridge.dispatch(action)
+  },
+  highlight: (verse) => {
+    // 连按方向键时先更新本地快照，预览/投影随状态回包同步
+    if (current) current = { ...current, currentVerse: verse }
+    void window.bridge.dispatch({ type: 'highlight', verse })
   },
   isDrawerOpen: () => !styleViewRoot.hidden,
   closeDrawer: () => styleView.setVisible(false),

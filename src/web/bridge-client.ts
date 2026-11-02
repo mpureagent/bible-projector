@@ -1,4 +1,4 @@
-import type { Action, AppState, BridgeApi, HistoryEntry, ScrollDirection } from '../shared/types'
+import type { AppAction, AppState, BridgeApi, HistoryEntry, ScrollDirection } from '../shared/types'
 
 // W1：浏览器版 window.bridge——HTTP 请求 + 单条 SSE 连接。
 // onState/onBanner/onScroll 共用一个 EventSource；EventSource 自带断线重连，
@@ -121,7 +121,7 @@ export function createWebBridge(options: WebBridgeOptions = {}): BridgeApi {
   armStallTimer()
 
   return {
-    dispatch: (action: Action) =>
+    dispatch: (action: AppAction) =>
       requestJson<AppState>('/api/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

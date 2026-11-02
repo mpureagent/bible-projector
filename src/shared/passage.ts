@@ -5,7 +5,7 @@
 import { bookBySn, chapterVerses } from './bible'
 import { FONT_STACKS, TEXTURES } from './style'
 import { PROJECTION_THEMES, type ProjectionTheme } from './themes'
-import type { ProjectionStyle, Selection } from './types'
+import type { AppState, ProjectionStyle, Selection } from './types'
 
 const BUILTIN_PREFIX = 'builtin:'
 export const FONT_SIZE_MAX = 200 // §11：字号上限
@@ -64,6 +64,40 @@ export interface PassageOptions {
   currentVerse: number | null
 }
 
+// W3：当前点亮节只认状态里的 currentVerse（与 selection 解耦）。
+// 旧状态快照/旧测试夹具没有该字段时，回落到选区第一节，保持既有观感。
+export function resolveCurrentVerse(state: AppState): number | null {
+  const selection = state.selection
+  if (!selection) return null
+  const verse = state.currentVerse === undefined ? selection.verses.from : state.currentVerse
+  if (verse === null) return null
+  return verse >= selection.verses.from && verse <= selection.verses.to ? verse : null
+}
+
+// W3：整段构建（选区 → 排版核），投影与预览共用同一入口
+export function buildStatePassage(state: AppState, fontSize: number): HTMLElement | null {
+  const selection = state.selection
+  if (!selection) return null
+  const book = bookBySn(selection.sn)
+  const verses = chapterVerses(selection.sn, selection.chapter)
+  const list: PassageVerse[] = []
+  for (let v = selection.verses.from; v <= selection.verses.to; v++) {
+    const text = verses[v - 1]
+    if (text !== undefined) list.push({ number: v, text })
+  }
+  return buildPassage(
+    {
+      bookName: book?.name ?? `卷 ${selection.sn}`,
+      chapter: selection.chapter,
+      from: selection.verses.from,
+      to: selection.verses.to,
+    },
+    list,
+    state.style,
+    { fontSize, currentVerse: resolveCurrentVerse(state) },
+  )
+}
+
 // R2/R4：自然段落连续流——整个所选范围排一段，节号上标嵌句首（不再一节一行）。
 // 当前节 = 段内句子级点亮：其 vtext 加 class="current" + 高亮底色/字色（会众跟读定位）。
 export function buildPassage(
@@ -85,7 +119,8 @@ export function buildPassage(
   if (!style.hideTitle) container.appendChild(buildTitle(meta, opts.fontSize))
   const flow = document.createElement('p')
   flow.className = 'flow'
-  for (const verse of verses) flow.appendChild(buildVerse(verse, verse.number === opts.currentVerse, theme, style))
+  const currentVerse = style.hideCurrent ? null : opts.currentVerse
+  for (const verse of verses) flow.appendChild(buildVerse(verse, verse.number === currentVerse, theme, style))
   container.appendChild(flow)
   return container
 }
@@ -143,4 +178,22 @@ function buildVerse(
   }
   frag.appendChild(body)
   return frag
+}
+
+// W3 硬约束：高亮变化只走增量路径——摘除旧 .current、点亮新 .current，
+// 仅改 class 与内联 color/backgroundColor，绝不重建 DOM（避免 scroll→render→scroll 抖动）。
+export function applyVerseHighlight(root: HTMLElement, currentVerse: number | null, style: ProjectionStyle): void {
+  const wanted = style.hideCurrent ? null : currentVerse
+  for (const el of root.querySelectorAll<HTMLElement>(`.vtext.current`)) {
+    el.classList.remove('current')
+    el.style.color = ''
+    el.style.backgroundColor = ''
+  }
+  if (wanted === null) return
+  const el = root.querySelector<HTMLElement>(`[${VERSE_ATTR}="${wanted}"]`)
+  if (!el) return
+  const theme = themeFor(style)
+  el.classList.add('current')
+  el.style.color = style.currentColor ?? theme.currentColor
+  el.style.backgroundColor = theme.currentBackground
 }

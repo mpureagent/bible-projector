@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { Action, AppState, ScrollDirection } from '../shared/types'
+import type { AppAction, AppState, ScrollDirection } from '../shared/types'
 
 // 沙箱化 preload 只允许 require('electron')，其余依赖一律内联（通道常量见 src/shared/types.ts）
 const CH = {
@@ -12,7 +12,7 @@ const CH = {
 } as const
 
 contextBridge.exposeInMainWorld('bridge', {
-  dispatch: (action: Action) => ipcRenderer.invoke(CH.action, action),
+  dispatch: (action: AppAction) => ipcRenderer.invoke(CH.action, action),
   getState: () => ipcRenderer.invoke(CH.getState),
   getHistory: () => ipcRenderer.invoke(CH.getHistory),
   onState: (callback: (state: AppState) => void) => {

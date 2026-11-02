@@ -84,7 +84,7 @@ export class StyleView {
         this.resetThemeButton(),
       ),
       this.section('背景', ...this.backgroundFields(customInput, error)),
-      this.section('显隐', this.checkboxField('隐藏节号', 'hideVerseNumbers'), this.checkboxField('隐藏书卷标题', 'hideTitle')),
+      this.section('显隐', this.checkboxField('隐藏节号', 'hideVerseNumbers'), this.checkboxField('隐藏书卷标题', 'hideTitle'), this.checkboxField('隐藏当前节高亮', 'hideCurrent')),
     )
 
     root.append(mask, panel)
@@ -109,7 +109,7 @@ export class StyleView {
       const el = this.root.querySelector<HTMLInputElement>(`[data-field="${name}"]`)
       if (el) el.value = String(record[name] ?? '')
     }
-    for (const name of ['hideVerseNumbers', 'hideTitle']) {
+    for (const name of ['hideVerseNumbers', 'hideTitle', 'hideCurrent']) {
       const el = this.root.querySelector<HTMLInputElement>(`[data-field="${name}"]`)
       if (el) el.checked = Boolean(record[name])
     }

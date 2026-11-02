@@ -1,4 +1,4 @@
-import type { Action, AppState, HistoryEntry, ProjectionStyle, Selection } from '../shared/types'
+import type { AppAction, AppState, HistoryEntry, ProjectionStyle, Selection } from '../shared/types'
 import { isBuiltinTexture, validateBackgroundImage, validateColor } from '../shared/style'
 
 export interface PersistedConfig {
@@ -29,6 +29,8 @@ const DEFAULT_STYLE: ProjectionStyle = {
   letterSpacing: 0,
   align: 'center',
   margin: 8,
+  // W3：显式缺省（值为 undefined 时按 false 处理）。不落 true，避免旧配置/精确断言漂移
+  hideCurrent: undefined,
 }
 const HISTORY_CAP = 50
 const FONT_SIZE_MAX = 200 // §11：字号上限
@@ -137,7 +139,7 @@ export class AppStateStore {
     return this.history
   }
 
-  dispatch(action: Action): Readonly<AppState> {
+  dispatch(action: AppAction): Readonly<AppState> {
     this.state = reduce(this.state, action)
     if (action.type === 'select' && action.selection) {
       this.pushHistory(action.selection)
@@ -173,10 +175,21 @@ export class AppStateStore {
   }
 }
 
-function reduce(state: AppState, action: Action): AppState {
+function reduce(state: AppState, action: AppAction): AppState {
   switch (action.type) {
-    case 'select':
-      return { ...state, selection: action.selection }
+    case 'select': {
+      const selection = action.selection
+      return { ...state, selection, currentVerse: selection ? selection.verses.from : null }
+    }
+    case 'highlight': {
+      // W3：只点亮，不触碰 selection。越界值一律忽略（不报错、不夹取）
+      if (action.verse === null) return { ...state, currentVerse: null }
+      const selection = state.selection
+      if (!selection) return state
+      const { from, to } = selection.verses
+      if (action.verse < from || action.verse > to) return state
+      return { ...state, currentVerse: action.verse }
+    }
     case 'style':
       return { ...state, style: enforceBackground({ ...state.style, ...sanitizePatch(action.patch) }) }
     case 'display':

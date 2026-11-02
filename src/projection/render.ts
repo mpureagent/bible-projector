@@ -1,39 +1,55 @@
-import { bookBySn, chapterVerses } from '../shared/bible'
-import { applyStageStyle, buildPassage, resolveFontSize, type PassageVerse } from '../shared/passage'
-import type { AppState } from '../shared/types'
+import {
+  applyStageStyle,
+  applyVerseHighlight,
+  buildStatePassage,
+  resolveCurrentVerse,
+  resolveFontSize,
+} from '../shared/passage'
+import type { AppState, Selection } from '../shared/types'
 
 // T3-cascade/T4-layout/T7-layout/T7-flow：投影窗渲染。
 // R2/R4：废除分页引擎——整个所选范围按**自然段落连续流**一次排版，纵向滚动阅读；
 // 排版核 shared/passage.ts 与预览同源。
+// W3：currentVerse 变化只走增量高亮；只有 selection/style 真正变化才整段重建。
 
-// 分页引擎已退役（R4）：排版不再依赖视口，整段一次渲染为纵向瀑布流
-export function renderProjection(root: HTMLElement, state: AppState): void {
-  applyStageStyle(root, state.style)
-  root.replaceChildren()
+interface Snapshot {
+  selectionKey: string
+  styleKey: string
+}
 
-  if (!state.selection) {
-    const placeholder = document.createElement('div')
-    placeholder.className = 'placeholder'
-    placeholder.textContent = '圣言投屏'
-    root.appendChild(placeholder)
-    return
+const snapshots = new WeakMap<HTMLElement, Snapshot>()
+
+function selectionKey(selection: Selection | null): string {
+  return selection
+    ? `${selection.sn}/${selection.chapter}/${selection.verses.from}/${selection.verses.to}`
+    : 'null'
+}
+
+function snapshotOf(state: AppState): Snapshot {
+  return { selectionKey: selectionKey(state.selection), styleKey: JSON.stringify(state.style) }
+}
+
+// 返回本次是否整段重建（调用方可据此决定是否做滚动跟随）
+export function renderProjection(root: HTMLElement, state: AppState): boolean {
+  const next = snapshotOf(state)
+  const previous = snapshots.get(root)
+  const rebuild = !previous || previous.selectionKey !== next.selectionKey || previous.styleKey !== next.styleKey
+
+  if (rebuild) {
+    applyStageStyle(root, state.style)
+    root.replaceChildren()
+    const passage = buildStatePassage(state, resolveFontSize(state.style))
+    if (passage) {
+      root.appendChild(passage)
+    } else {
+      const placeholder = document.createElement('div')
+      placeholder.className = 'placeholder'
+      placeholder.textContent = '圣言投屏'
+      root.appendChild(placeholder)
+    }
+    snapshots.set(root, next)
   }
 
-  const sel = state.selection
-  const book = bookBySn(sel.sn)
-  const verses = chapterVerses(sel.sn, sel.chapter)
-  const list: PassageVerse[] = []
-  for (let v = sel.verses.from; v <= sel.verses.to; v++) {
-    const text = verses[v - 1]
-    if (text !== undefined) list.push({ number: v, text })
-  }
-
-  root.appendChild(
-    buildPassage(
-      { bookName: book?.name ?? `卷 ${sel.sn}`, chapter: sel.chapter, from: sel.verses.from, to: sel.verses.to },
-      list,
-      state.style,
-      { fontSize: resolveFontSize(state.style), currentVerse: sel.verses.from },
-    ),
-  )
+  applyVerseHighlight(root, resolveCurrentVerse(state), state.style)
+  return rebuild
 }
