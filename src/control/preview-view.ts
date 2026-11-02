@@ -9,6 +9,7 @@ import {
   resolveFontSize,
   VERSE_ATTR,
 } from '../shared/passage'
+import { domPointDeps, resolveVerseFromPoint, verseFromElement } from '../projection/hit-test'
 import type { AppState, ScrollDirection, Selection } from '../shared/types'
 import { ScrollController, verseAtTop } from '../projection/scroll'
 
@@ -70,10 +71,16 @@ export class PreviewView {
     const textSelection = window.getSelection()
     if (textSelection && !textSelection.isCollapsed && textSelection.toString().trim() !== '') return
     const target = event.target
-    if (!(target instanceof Element)) return
-    const el = target.closest<HTMLElement>(`[${VERSE_ATTR}]`)
-    if (!el) return
-    const verse = Number(el.getAttribute(VERSE_ATTR))
+    // 与投影窗同一套命中解析：行内排版的行末空白不属于 [data-verse]，需按坐标兜底
+    const mouse = event as MouseEvent
+    const verse =
+      verseFromElement(target instanceof Element ? target : null) ??
+      resolveVerseFromPoint(
+        mouse.clientX ?? 0,
+        mouse.clientY ?? 0,
+        domPointDeps(this.root, this.root.ownerDocument),
+      )
+    if (verse === null) return
     const state = this.state
     if (!state?.selection) return
     if (verse < state.selection.verses.from || verse > state.selection.verses.to) return

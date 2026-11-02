@@ -4,6 +4,7 @@ import { moveHighlight } from '../shared/keymap'
 import { resolveCurrentVerse, VERSE_ATTR } from '../shared/passage'
 import { renderProjection } from './render'
 import { ScrollController, verseAtTop } from './scroll'
+import { domPointDeps, resolveVerseFromPoint, verseFromElement } from './hit-test'
 
 applyFontStack(document)
 window.bridge.onState(render)
@@ -34,6 +35,9 @@ const controller = new ScrollController(stage, scrollbar, {
   },
 })
 
+// 点击命中的坐标兜底（见 hit-test.ts：行内排版的行末空白不归 [data-verse] 所有）
+const pointDeps = domPointDeps(stage)
+
 // W3：滚动停下 → 点亮屏幕顶部第一行所在节（状态回包前去重）
 function syncHighlightFromTop(): void {
   const state = lastState
@@ -60,10 +64,12 @@ stage.addEventListener('click', (event) => {
   const textSelection = window.getSelection()
   if (textSelection && !textSelection.isCollapsed && textSelection.toString().trim() !== '') return
   const target = event.target
-  if (!(target instanceof Element)) return
-  const el = target.closest<HTMLElement>(`[${VERSE_ATTR}]`)
-  if (!el) return
-  const verse = Number(el.getAttribute(VERSE_ATTR))
+  // 先按元素精确命中；经文是行内 span，点在行末空白/行间隙时 target 会落到父级 .flow，
+  // 此时再用坐标（caret）反查最近的节——否则手机上手指导航一点就"点空"，表现为必须点两次。
+  const verse =
+    verseFromElement(target instanceof Element ? target : null) ??
+    resolveVerseFromPoint(event.clientX, event.clientY, pointDeps)
+  if (verse === null) return
   const state = lastState
   if (!state?.selection) return
   if (verse < state.selection.verses.from || verse > state.selection.verses.to) return

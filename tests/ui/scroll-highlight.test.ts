@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SCROLL_SETTLE_MS, ScrollController } from '../../src/projection/scroll'
+import { CLICK_SUPPRESS_MS, SCROLL_SETTLE_MS, ScrollController } from '../../src/projection/scroll'
 
 // W3：滚动取节只在真正停下时结算——rAF 合并 + 防抖，不允许每帧派发；
 // 拖动延后到松手，拖动完的 click 不算点击。
@@ -92,6 +92,42 @@ describe('W3 滚动停止判定（连续滚动不每帧派发）', () => {
     el.dispatchEvent(new MouseEvent('pointermove', { clientY: 200, clientX: 10, bubbles: true }))
     el.dispatchEvent(new MouseEvent('pointerup', { clientY: 200, clientX: 10, bubbles: true }))
     expect(ctrl.consumeClickSuppressed()).toBe(true)
+    expect(ctrl.consumeClickSuppressed()).toBe(false)
+    ctrl.destroy()
+  })
+
+  // 回归：手机上"滚动之后第一次点没反应，要点第二次"。
+  // 触摸滚动不产生 click，抑制标志一直挂着，被下一次真正的轻点消费掉。
+  it('触摸滚动（不产生 click）后，下一次轻点的 click 不被误吞', () => {
+    const el = scrollEl()
+    const ctrl = new ScrollController(el, null, { screenHeight: () => 300 })
+    // 手势一：拖动滚动，松手后浏览器不发 click
+    el.dispatchEvent(new MouseEvent('pointerdown', { clientY: 200, clientX: 10, bubbles: true }))
+    el.dispatchEvent(new MouseEvent('pointermove', { clientY: 120, clientX: 10, bubbles: true }))
+    el.dispatchEvent(new MouseEvent('pointerup', { clientY: 120, clientX: 10, bubbles: true }))
+    // 手势二：纯轻点（新手势开始时即作废上一次的抑制）
+    el.dispatchEvent(new MouseEvent('pointerdown', { clientY: 400, clientX: 10, bubbles: true }))
+    el.dispatchEvent(new MouseEvent('pointerup', { clientY: 400, clientX: 10, bubbles: true }))
+    expect(ctrl.consumeClickSuppressed()).toBe(false)
+    ctrl.destroy()
+  })
+
+  it('时间窗过期后不再抑制（防标志长期残留）', () => {
+    const el = scrollEl()
+    let clock = 1000
+    const ctrl = new ScrollController(el, null, { screenHeight: () => 300, now: () => clock })
+    el.dispatchEvent(new MouseEvent('pointerdown', { clientY: 200, clientX: 10, bubbles: true }))
+    el.dispatchEvent(new MouseEvent('pointermove', { clientY: 120, clientX: 10, bubbles: true }))
+    el.dispatchEvent(new MouseEvent('pointerup', { clientY: 120, clientX: 10, bubbles: true }))
+    // 时间窗内仍抑制（同一次手势的尾随 click）
+    clock += CLICK_SUPPRESS_MS - 1
+    expect(ctrl.consumeClickSuppressed()).toBe(true)
+
+    // 再来一次拖动，然后跳到时间窗外
+    el.dispatchEvent(new MouseEvent('pointerdown', { clientY: 200, clientX: 10, bubbles: true }))
+    el.dispatchEvent(new MouseEvent('pointermove', { clientY: 120, clientX: 10, bubbles: true }))
+    el.dispatchEvent(new MouseEvent('pointerup', { clientY: 120, clientX: 10, bubbles: true }))
+    clock += CLICK_SUPPRESS_MS + 50
     expect(ctrl.consumeClickSuppressed()).toBe(false)
     ctrl.destroy()
   })

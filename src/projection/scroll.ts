@@ -10,6 +10,10 @@ export const INERTIA_DECAY = 0.94 // 每帧速度衰减
 export const SETTLE_VELOCITY = 0.2 // 速度低于此值即停（px/帧）
 export const SCROLL_SETTLE_MS = 120 // 滚动停止判定（最后一帧后再等这么久）
 export const CLICK_DRAG_THRESHOLD = 6 // 拖动超过此距离不再视为点击
+// 拖动松手后，仅在这个时间窗内的 click 才算同一次手势的尾随点击。
+// 触摸滚动不会产生 click（浏览器判定为滚动手势），若无时间窗，抑制标志会一直挂着，
+// 被下一次真正的轻点消费掉——表现为"滚动之后第一次点没反应，要点第二次"。
+export const CLICK_SUPPRESS_MS = 400
 
 export function progressRatio(scrollTop: number, scrollHeight: number, clientHeight: number): number {
   const max = scrollHeight - clientHeight
@@ -132,6 +136,7 @@ export class ScrollController {
   private pointerStartY = 0
   private moved = false
   private suppressClick = false
+  private suppressClickUntil = 0
 
   constructor(
     private readonly scrollEl: HTMLElement,
@@ -219,6 +224,9 @@ export class ScrollController {
     this.pointerStartY = event.clientY
     this.moved = false
     this.velocity = 0
+    // 新手势开始 → 作废上一次手势遗留的点击抑制（触摸滚动不产生 click，标志会一直挂着）
+    this.suppressClick = false
+    this.suppressClickUntil = 0
     this.stopInertia()
     this.markActivity()
   }
@@ -242,17 +250,27 @@ export class ScrollController {
     if (!this.dragging) return
     this.dragging = false
     const moved = this.moved
-    if (moved) this.suppressClick = true
+    if (moved) {
+      this.suppressClick = true
+      this.suppressClickUntil = this.nowMs() + CLICK_SUPPRESS_MS
+    }
     this.startInertia()
     // 纯轻点没有发生滚动，不做"滚动停下"取节（否则会先闪到顶部节再执行点击）
     if (moved && this.inertiaRaf === null) this.flushSettle()
   }
 
-  // 拖动松手后的点击不算点击（避免拖完误点亮）
+  // 拖动松手后的点击不算点击（避免拖完误点亮）。
+  // 只在时间窗内抑制：触摸滚动根本不产生 click，若靠"等下一次 click 来消费"，
+  // 被吞掉的会是用户下一次真正的轻点。
   consumeClickSuppressed(): boolean {
-    const value = this.suppressClick
+    const value = this.suppressClick && this.nowMs() <= this.suppressClickUntil
     this.suppressClick = false
+    this.suppressClickUntil = 0
     return value
+  }
+
+  private nowMs(): number {
+    return (this.options.now ?? Date.now)()
   }
 
   private startInertia(): void {

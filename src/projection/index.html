@@ -19,6 +19,9 @@
         height: 100vh;
         overflow-y: auto;
         overflow-x: hidden;
+        /* 双击缩放会毁掉投屏画面，且与"轻点某节点亮"冲突。
+           manipulation = 保留滚动与双指捏合，仅去掉双击缩放（不强制 user-scalable=no，避免伤及无障碍）。 */
+        touch-action: manipulation;
       }
       #stage::-webkit-scrollbar { width: 0; height: 0; }
       .passage { padding: 8%; line-height: 1.7; max-width: 100%; }
